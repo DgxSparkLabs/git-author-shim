@@ -3,9 +3,9 @@
 Fixtures exported here:
 
 ``clean_env``
-    Autouse environment sanitizer. Removes every ambient ``GIT_*``, ``CLAUDE_*``,
-    ``UV_SHIM_*`` / ``__UV_SHIM_*`` variable plus known agent markers so no test ever
-    observes the developer's real shell.
+    Autouse environment sanitizer. Removes every ambient ``GIT_*`` (including
+    ``GIT_SHIM_*``), ``CLAUDE_*`` and ``__GIT_SHIM_*`` variable plus known agent
+    markers so no test ever observes the developer's real shell.
 ``isolated_env``
     Function-scoped fake ``HOME`` / ``USERPROFILE`` / ``XDG_CONFIG_HOME`` / ``APPDATA``
     rooted in ``tmp_path``, with helpers for writing shim config files.
@@ -50,11 +50,11 @@ _IMPORT_PATH: str = os.environ.get("PATH", "")
 def real_git() -> str | None:
     """Absolute path to a genuine ``git`` binary, or ``None`` if there is none.
 
-    Deliberately *not* a plain ``shutil.which("git")``: this project installs its own
-    ``git`` console script into the environment's scripts directory, which would
-    otherwise make every repository fixture recurse into the shim under test. Candidates
-    inside the interpreter's prefixes are skipped and the winner must answer
-    ``git --version``.
+    Deliberately *not* a plain ``shutil.which("git")``: a venv-local ``git``
+    launcher (from ``git-shim shadow enable``, or a leftover console script)
+    would otherwise make every repository fixture recurse into the shim under
+    test. Candidates inside the interpreter's prefixes are skipped and the
+    winner must answer ``git --version``.
     """
     excluded: list[Path] = []
     for prefix in (sys.prefix, sys.base_prefix, sys.exec_prefix):
@@ -105,7 +105,7 @@ SANITIZED_NAMES: frozenset[str] = frozenset(
 )
 
 #: Environment variables wiped by prefix.
-SANITIZED_PREFIXES: tuple[str, ...] = ("GIT_", "CLAUDE_", "UV_SHIM_", "__UV_SHIM_")
+SANITIZED_PREFIXES: tuple[str, ...] = ("GIT_", "CLAUDE_", "__GIT_SHIM_")
 
 
 def _sanitized(names: Iterable[str]) -> list[str]:

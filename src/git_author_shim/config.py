@@ -38,13 +38,13 @@ class LocalConfig:
 def default_config_path(env: Mapping[str, str] | None = None) -> Path:
     """Return the operator-owned global configuration path.
 
-    Precedence: ``GIT_SHIM_CONFIG``, then the legacy ``UV_SHIM_GIT_CONFIG``,
-    then ``~/.git-shim/config.toml``. If ``config.toml`` is absent but
-    ``~/.git-shim/git.toml`` exists, that legacy filename is used instead.
+    Precedence: ``GIT_SHIM_CONFIG``, then ``~/.git-shim/config.toml``. If
+    ``config.toml`` is absent but ``~/.git-shim/git.toml`` exists, that legacy
+    filename is used instead.
     """
 
     environment = os.environ if env is None else env
-    override = environment.get("GIT_SHIM_CONFIG") or environment.get("UV_SHIM_GIT_CONFIG")
+    override = environment.get("GIT_SHIM_CONFIG")
     if override:
         return Path(override)
     config_dir = Path.home() / ".git-shim"

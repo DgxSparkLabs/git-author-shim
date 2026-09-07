@@ -46,11 +46,11 @@ description: "100% Test-Driven Design (TDD) task list for Git Author Identity Sh
 - [x] T009 Implement TOML configuration loader and validator in `src/uv_shims/git/config.py` (gates on T008 passing)
 
 ### Real Git Discovery & Loop Sentinel (TDD Cycle 3)
-- [x] T010 [P] Write unit tests for real Git discovery in `tests/unit/test_real_git_discovery.py`: assert scanning `PATH` (and Windows `PATHEXT`), skipping the shim executable itself, handling custom `UV_SHIM_GIT_REAL_PATH`, and injecting `__UV_SHIM_GIT_CONTINUATION=1`
+- [x] T010 [P] Write unit tests for real Git discovery in `tests/unit/test_real_git_discovery.py`: assert scanning `PATH` (and Windows `PATHEXT`), skipping the shim executable itself, handling custom `GIT_SHIM_REAL_PATH`, and injecting `__GIT_SHIM_CONTINUATION=1`
 - [x] T011 Implement real Git binary resolution and recursion sentinel handling in `src/uv_shims/git/real_git_discovery.py` (gates on T010 passing)
 
 ### Agent Mode & Marker Detection (TDD Cycle 4)
-- [x] T012 [P] Write unit tests for agent detection in `tests/unit/test_agent_detection.py`: assert detection of `AGENT_ID`, `CLAUDE_CODE`, `CODEX_SANDBOX`, custom markers, and mode overrides (`UV_SHIM_GIT_MODE=auto|agent|human`)
+- [x] T012 [P] Write unit tests for agent detection in `tests/unit/test_agent_detection.py`: assert detection of `AGENT_ID`, `CLAUDE_CODE`, `CODEX_SANDBOX`, custom markers, and mode overrides (`GIT_SHIM_MODE=auto|agent|human`)
 - [x] T013 Implement agent mode and vendor marker detection in `src/uv_shims/git/agent_detection.py` (gates on T012 passing)
 
 **Checkpoint**: Foundation complete and 100% verified by failing-then-passing unit tests.
@@ -118,7 +118,7 @@ description: "100% Test-Driven Design (TDD) task list for Git Author Identity Sh
 - [x] T029 [US4] Implement command taxonomy classifier in `src/uv_shims/git/commit_authorship_classifier.py` (gates on T028 passing)
 
 ### Fail-Closed Write Policy (TDD Cycle 13)
-- [x] T030 [P] [US4] Write integration test in `tests/integration/test_fail_safe.py`: in an unconfigured repository under agent mode, assert `git status` and `git log` exit 0, while `git commit` and `git push` abort with exit 1 and output the exact configuration remedy; assert `UV_SHIM_GIT_MODE=human` allows writes under operator identity
+- [x] T030 [P] [US4] Write integration test in `tests/integration/test_fail_safe.py`: in an unconfigured repository under agent mode, assert `git status` and `git log` exit 0, while `git commit` and `git push` abort with exit 1 and output the exact configuration remedy; assert `GIT_SHIM_MODE=human` allows writes under operator identity
 - [x] T031 [US4] Implement fail-closed write refusal and human override in `src/uv_shims/git/cli.py` (gates on T030 passing)
 
 **Checkpoint**: Fail-safe write boundaries verified.
@@ -131,7 +131,7 @@ description: "100% Test-Driven Design (TDD) task list for Git Author Identity Sh
 
 ### Recursion & Continuation Safety (TDD Cycle 14)
 - [x] T032 [P] [US6] Write integration tests in `tests/integration/test_recursion_protection.py`: install shim at front of `PATH`, execute a pre-commit hook that calls `git diff`, a submodule update (`git submodule update`), an alias expanding to `git`, and a `rebase --exec "git status"`; assert single execution with zero recursion loops, and assert a nested write to an unconfigured host still triggers fail-closed refusal
-- [x] T033 [US6] Enforce `__UV_SHIM_GIT_CONTINUATION` propagation and child invocation security in `src/uv_shims/git/real_git_discovery.py` and `src/uv_shims/git/cli.py` (gates on T032 passing)
+- [x] T033 [US6] Enforce `__GIT_SHIM_CONTINUATION` propagation and child invocation security in `src/uv_shims/git/real_git_discovery.py` and `src/uv_shims/git/cli.py` (gates on T032 passing)
 
 **Checkpoint**: Loop-free, secure execution across nested Git operations.
 

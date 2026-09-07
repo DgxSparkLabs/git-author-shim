@@ -28,28 +28,41 @@ cd git-author-shim
 uv tool install .
 ```
 
-`uv tool install` places `git` and `git-shim` on the tool bin path (`~/.local/bin` on POSIX, `%USERPROFILE%\.local\bin` on Windows). Keep that directory on `PATH`.
+`uv tool install` installs every `[project.scripts]` entry. This package declares both `git` (`git_author_shim.__main__:main`) and `git-shim` (`git_author_shim.cli:main`), so uv places a real `git` trampoline (`git.exe` on Windows) and `git-shim` on the tool bin path (`~/.local/bin` on POSIX, `%USERPROFILE%\.local\bin` on Windows). Keep that directory on `PATH` ahead of system Git for Option 1.
+
+On Windows the trampoline is a PE `git.exe` that `CreateProcessW` can execute. Agent spawners (Claude Code, Cursor, Codex, and `subprocess.run(["git", ...], shell=False)` / `child_process.spawn("git", ...)`) cannot run a `.cmd` wrapper; this project never uses one.
 
 ## Two ways to use it
 
-### Option 1: Transparent Git shadowing (agent mode)
+### Option 1: Transparent Git shadowing (default)
 
-The installed `git` executable is the shim. Any coding agent that calls `git` goes through it automatically.
+The installed `git` executable **is** the shim. Any coding agent that calls `git` (including `CreateProcessW` / `spawn` without a shell) goes through it automatically.
 
-Operator commits in unconfigured repositories pass through with zero overhead and zero mutation of personal Git or SSH configuration. Agent writes against a matching identity receive bot attribution and bot credentials. Agent writes with no identity, missing credentials, or an ambiguous match are refused rather than falling back to the operator.
+Operator commits in unconfigured repositories pass through with zero mutation of personal Git or SSH configuration. Agent writes against a matching identity receive bot attribution and bot credentials. Agent writes with no identity, missing credentials, or an ambiguous match are refused rather than falling back to the operator.
+
+```bash
+git-shim shadow enable    # default after install; re-assert full shim
+git-shim shadow status
+```
 
 Launch the agent from a shell whose `PATH` lists the uv tool bin directory before system Git.
 
-### Option 2: Coexistence / standalone mode (`git-shim`)
+### Option 2: Passthrough / standalone `git-shim`
 
-Leave system `git` first on `PATH` and invoke the shim by name:
+Leave the `git` trampoline on `PATH` but make it a no-op wrapper around real Git:
+
+```bash
+git-shim shadow disable
+```
+
+`git` then passes through to system Git with no identity or credential injection. Invoke the shim by name when you want bot attribution:
 
 ```bash
 git-shim commit -m "feat: bot commit"
 git-shim push origin feature-branch
 ```
 
-Point AI coding agents or shell aliases at `git-shim` as the Git binary when you want bot attribution without shadowing every `git` on the machine.
+Point AI coding agents or shell aliases at `git-shim` as the Git binary when you want bot attribution without intercepting every `git` on the machine. `GIT_SHIM_SHADOW=0` forces passthrough for a single process without changing the marker.
 
 ## Configuration
 
@@ -112,11 +125,13 @@ git-shim explain [--json]
 git-shim list-identities
 git-shim trust <repo-config>
 git-shim untrust <repo-config>
+git-shim shadow enable|disable|status
 ```
 
 - **`git-shim explain [--json]`** prints the resolved plan for the current repository and arguments. Secret tokens are strictly redacted. The command has zero Git side-effects: it does not commit, push, or contact credential sources.
 - **`git-shim list-identities`** prints a tabular audit of every configured profile.
 - **`git-shim trust <repo-config>`** / **`git-shim untrust <repo-config>`** implement a cryptographic SHA-256 trust gate for repository-local `.git-shim.toml` files. Untrusted or modified files are ignored. Local files may select a global identity and override display name/email; they cannot introduce keys, tokens, or token commands.
+- **`git-shim shadow enable|disable|status`** flips the installed `git` trampoline between full shim (Option 1) and passthrough to real Git (Option 2). It does not create or delete `git.exe`.
 
 ```toml
 # .git-shim.toml at the repository root — ignored until trusted
@@ -141,6 +156,17 @@ git-shim untrust .git-shim.toml
 - **Fail-closed.** Missing credentials, unmatched hosts, and ambiguous identity matches refuse the write instead of falling back to the operator.
 
 This is an attribution and credential-scoping tool, not a sandbox. An agent that controls its environment can still invoke real Git or force human passthrough.
+
+## Troubleshooting environment variables
+
+| Variable | Purpose |
+| --- | --- |
+| `GIT_SHIM_MODE` | `auto` (default), `agent`, or `human`. `human` is a fast passthrough with no bot identity. |
+| `GIT_SHIM_CONFIG` | Absolute path to the global `config.toml`. |
+| `GIT_SHIM_EXPLAIN` | `1` / `true` prints the resolved plan (secrets redacted) and exits 0 without running Git. |
+| `GIT_SHIM_REAL_PATH` | Absolute path to real Git when PATH discovery fails or would select the shim. |
+| `GIT_SHIM_SHADOW` | `1` forces the `git` trampoline into the full shim; `0` forces passthrough, overriding the `.git-shim-shadow` marker. |
+| `__GIT_SHIM_CONTINUATION` | Internal. Set on child Git processes to prevent recursive self-invocation. Not an authorization grant. |
 
 ## License
 

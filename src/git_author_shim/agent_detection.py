@@ -24,7 +24,7 @@ def resolve_identity_mode(config: ShimConfig, env=None) -> tuple[IdentityMode, s
     if env is None:
         env = os.environ
     settings = config.settings
-    mode = IdentityMode(env.get("UV_SHIM_GIT_MODE", settings.default_mode))
+    mode = IdentityMode(env.get("GIT_SHIM_MODE", settings.default_mode))
     if mode is not IdentityMode.AUTO:
         return mode, None
     if settings.vendor_detection:

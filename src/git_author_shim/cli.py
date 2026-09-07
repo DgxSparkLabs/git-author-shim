@@ -4,7 +4,7 @@ Every ``git`` invocation an operator or an agent makes flows through this module
 so only ``os`` and ``sys`` are imported eagerly. ``subprocess``, ``signal``,
 ``argparse``, ``json``, the configuration loader (and its ``tomllib``
 dependency) and the credential builders are imported inside the branch that
-needs them. The explicit ``UV_SHIM_GIT_MODE=human`` fast path therefore reaches
+needs them. The explicit ``GIT_SHIM_MODE=human`` fast path therefore reaches
 the real Git binary without reading a single configuration byte.
 
 Repository inspection (remotes, tracked upstream, repository-local config) is
@@ -19,12 +19,12 @@ import sys
 
 _IS_WINDOWS = os.name == "nt"
 
-MODE_ENV = "UV_SHIM_GIT_MODE"
-EXPLAIN_ENV = "UV_SHIM_GIT_EXPLAIN"
+MODE_ENV = "GIT_SHIM_MODE"
+EXPLAIN_ENV = "GIT_SHIM_EXPLAIN"
 
 _TRUTHY = frozenset({"1", "true", "yes", "on"})
 
-_MANAGEMENT_COMMANDS = frozenset({"explain", "trust", "untrust", "list-identities"})
+_MANAGEMENT_COMMANDS = frozenset({"explain", "trust", "untrust", "list-identities", "shadow"})
 _MANAGEMENT_FLAGS = frozenset({"-h", "--help", "-v", "--version"})
 
 _AUTHOR_ENV = ("GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_AUTHOR_DATE")
@@ -766,6 +766,17 @@ def _fail(message: str) -> int:
     return 1
 
 
+def passthrough_git(argv: list[str] | None = None, env=None) -> int:
+    """Spawn real Git with no identity or credential injection."""
+
+    arguments = list(sys.argv[1:] if argv is None else argv)
+    environ = os.environ if env is None else env
+    try:
+        return _spawn(_real_git(environ), arguments, environ)
+    except ShimError as error:
+        return _fail(str(error))
+
+
 def run_git(argv: list[str] | None = None, env=None) -> int:
     """Execute one ``git`` invocation through the shim and return its exit code."""
     arguments = list(sys.argv[1:] if argv is None else argv)
@@ -948,9 +959,10 @@ def _set_trust(command: str, path: str | None) -> int:
 def _is_git_passthrough(arguments: list[str]) -> bool:
     """True when ``git-shim <args>`` should run as a shimmed Git invocation.
 
-    Management commands (``explain``, ``trust``, ``untrust``, ``list-identities``)
-    and top-level help/version flags stay in the operator CLI. Anything else,
-    including ``git-shim commit`` / ``git-shim -C <dir> status``, is Git.
+    Management commands (``explain``, ``trust``, ``untrust``, ``list-identities``,
+    ``shadow``) and top-level help/version flags stay in the operator CLI.
+    Anything else, including ``git-shim commit`` / ``git-shim -C <dir> status``,
+    is Git.
     """
     if not arguments:
         return False
@@ -958,15 +970,56 @@ def _is_git_passthrough(arguments: list[str]) -> bool:
     return first not in _MANAGEMENT_FLAGS and first not in _MANAGEMENT_COMMANDS
 
 
+def _invoked_as_git() -> bool:
+    """True when this process was launched as ``git`` rather than ``git-shim``.
+
+    A shadowed ``git`` launcher must never intercept management commands
+    (``git explain`` is a Git invocation, not ``git-shim explain``).
+    """
+    name = os.path.basename(sys.argv[0])
+    if _IS_WINDOWS:
+        name = name.lower()
+        root, ext = os.path.splitext(name)
+        if ext in {".exe", ".cmd", ".bat"}:
+            name = root
+    return name == "git"
+
+
+def _shadow(action: str) -> int:
+    from git_author_shim.shadow import (
+        ShadowError,
+        disable,
+        enable,
+        resolve_shim_executable,
+        status_text,
+    )
+
+    try:
+        shim = resolve_shim_executable(sys.argv[0])
+        if action == "enable":
+            sys.stdout.write(enable(shim) + "\n")
+        elif action == "disable":
+            sys.stdout.write(disable(shim) + "\n")
+        else:
+            sys.stdout.write(status_text(shim) + "\n")
+    except ShadowError as error:
+        return _fail(str(error))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """``git-shim`` operator CLI, or the shimmed Git executable.
 
-    ``git-shim explain`` / ``trust`` / ``untrust`` / ``list-identities`` manage
-    the shim. Any other argv (``git-shim commit``, ``git-shim push``, ...) is
-    forwarded to :func:`run_git` so Option 2 coexistence matches the ``git``
-    console script.
+    ``git-shim explain`` / ``trust`` / ``untrust`` / ``list-identities`` / ``shadow``
+    manage the shim. Any other argv (``git-shim commit``, ``git-shim push``, ...)
+    is forwarded to :func:`run_git` so coexistence matches a shadowed ``git``.
+    When invoked as ``git``, every argument is forwarded — management commands
+    stay on the ``git-shim`` executable.
     """
     arguments = sys.argv[1:] if argv is None else list(argv)
+    if argv is None and _invoked_as_git():
+        return run_git(sys.argv[1:])
+
     if _is_git_passthrough(arguments):
         return run_git(arguments)
 
@@ -1007,6 +1060,14 @@ def main(argv: list[str] | None = None) -> int:
     ):
         command = subcommands.add_parser(name, help=help_text)
         command.add_argument("path", nargs="?", default=None, help="path to .git-shim.toml")
+    shadow = subcommands.add_parser(
+        "shadow",
+        help="install or remove a git launcher that shadows system Git",
+    )
+    shadow_actions = shadow.add_subparsers(dest="shadow_action", required=True)
+    shadow_actions.add_parser("enable", help="create a git launcher next to git-shim")
+    shadow_actions.add_parser("disable", help="remove the git launcher created by enable")
+    shadow_actions.add_parser("status", help="show whether git is shadowed")
 
     args = parser.parse_args(arguments)
     try:
@@ -1014,6 +1075,8 @@ def main(argv: list[str] | None = None) -> int:
             return _explain(args.git_args, args.as_json)
         if args.command == "list-identities":
             return _list_identities()
+        if args.command == "shadow":
+            return _shadow(args.shadow_action)
         return _set_trust(args.command, args.path)
     except ShimError as error:
         return _fail(str(error))

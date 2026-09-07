@@ -96,7 +96,7 @@ def test_agent_commit_stamps_the_bot_as_author_and_committer(isolated_env, temp_
         "--allow-empty",
         "-m",
         "agent work",
-        env=agent_env(isolated_env, UV_SHIM_GIT_REAL_PATH=repo.git_binary),
+        env=agent_env(isolated_env, GIT_SHIM_REAL_PATH=repo.git_binary),
         cwd=repo.path,
     )
 
@@ -116,7 +116,7 @@ def test_agent_commit_outranks_a_repository_configured_human_identity(isolated_e
         "--allow-empty",
         "-m",
         "agent work",
-        env=agent_env(isolated_env, UV_SHIM_GIT_REAL_PATH=repo.git_binary),
+        env=agent_env(isolated_env, GIT_SHIM_REAL_PATH=repo.git_binary),
         cwd=repo.path,
     )
 

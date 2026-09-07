@@ -15,8 +15,8 @@ def test_annotated_tag_records_bot_tagger(isolated_env, temp_repo, monkeypatch):
     repo = temp_repo(remotes={"origin": "git@github.com:acme/app.git"})
     original = repo.git("cat-file", "commit", "HEAD").stdout
     monkeypatch.chdir(repo.path)
-    monkeypatch.setenv("UV_SHIM_GIT_MODE", "agent")
-    monkeypatch.setenv("UV_SHIM_GIT_REAL_PATH", repo.git_binary)
+    monkeypatch.setenv("GIT_SHIM_MODE", "agent")
+    monkeypatch.setenv("GIT_SHIM_REAL_PATH", repo.git_binary)
     monkeypatch.setenv("GIT_COMMITTER_NAME", "Human Operator")
     monkeypatch.setenv("GIT_COMMITTER_EMAIL", "human@example.invalid")
 

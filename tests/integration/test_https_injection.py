@@ -168,7 +168,7 @@ def test_bot_token_is_delivered_for_the_matched_host(
 
     isolated_env.write_config(_HTTPS_CONFIG.format(source=source))
     repo = temp_repo("acme-app", remotes={"origin": _REMOTE})
-    env = agent_env(isolated_env, UV_SHIM_GIT_REAL_PATH=repo.git_binary, **overrides)
+    env = agent_env(isolated_env, GIT_SHIM_REAL_PATH=repo.git_binary, **overrides)
 
     filled = credential_fill(repo, env)
 
@@ -182,7 +182,7 @@ def test_untrusted_repository_helper_is_neutralized(isolated_env, temp_repo, tmp
     repo.config(_SCOPED_KEY, fake_helper(tmp_path, "untrusted", "REPO-PLANTED-TOKEN"))
     env = agent_env(
         isolated_env,
-        UV_SHIM_GIT_REAL_PATH=repo.git_binary,
+        GIT_SHIM_REAL_PATH=repo.git_binary,
         ACME_BOT_TOKEN="bot-secret",
     )
 
@@ -198,7 +198,7 @@ def test_foreign_host_credentials_remain_untouched(isolated_env, temp_repo, tmp_
     repo.config(_FOREIGN_KEY, fake_helper(tmp_path, "foreign", "OPERATOR-TOKEN"))
     env = agent_env(
         isolated_env,
-        UV_SHIM_GIT_REAL_PATH=repo.git_binary,
+        GIT_SHIM_REAL_PATH=repo.git_binary,
         ACME_BOT_TOKEN="bot-secret",
     )
 

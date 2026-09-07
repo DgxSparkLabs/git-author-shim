@@ -75,7 +75,7 @@ def unmatched_remedy(isolated_env, canonical: str = _CANONICAL) -> str:
     return (
         f"git-shim: no bot identity matches {canonical}; "
         f"add an [[identities]] entry whose match_patterns cover it in "
-        f"{isolated_env.config_path}, or rerun with UV_SHIM_GIT_MODE=human\n"
+        f"{isolated_env.config_path}, or rerun with GIT_SHIM_MODE=human\n"
     )
 
 
@@ -132,7 +132,7 @@ def test_repository_without_a_remote_names_the_missing_remote(isolated_env, fake
     assert result.returncode == 1
     assert result.stderr == (
         "git-shim: this repository has no remote, so no bot identity can be matched; "
-        "add a remote or rerun with UV_SHIM_GIT_MODE=human\n"
+        "add a remote or rerun with GIT_SHIM_MODE=human\n"
     )
     assert fake_git.call_count == 0
 
@@ -143,8 +143,8 @@ def test_human_mode_allows_writes_under_the_operator_identity(isolated_env, temp
     repo.config("user.email", "operator@example.invalid")
     env = agent_env(
         isolated_env,
-        UV_SHIM_GIT_MODE="human",
-        UV_SHIM_GIT_REAL_PATH=repo.git_binary,
+        GIT_SHIM_MODE="human",
+        GIT_SHIM_REAL_PATH=repo.git_binary,
     )
 
     result = run_shim("commit", "--allow-empty", "-m", "operator work", env=env, cwd=repo.path)

@@ -48,7 +48,7 @@ def test_explain_json_matches_published_schema_without_token_characters(
     # decoded output also catches escaped or partially disclosed token material.
     secret = "£¤¥¦§©«¬®°±µ¶"
     monkeypatch.setenv("BOT_TOKEN", secret)
-    monkeypatch.setenv("UV_SHIM_GIT_MODE", mode)
+    monkeypatch.setenv("GIT_SHIM_MODE", mode)
     repo = temp_repo(remotes={"origin": f"https://{secret}@github.com/acme/app.git"})
     monkeypatch.chdir(repo.path)
     before = repo.git("show-ref").stdout
@@ -77,7 +77,7 @@ def test_explain_refusal_is_inspectable_and_never_runs_git(
 ):
     repo = temp_repo(remotes={"origin": "git@github.com:unconfigured/app.git"})
     monkeypatch.chdir(repo.path)
-    monkeypatch.setenv("UV_SHIM_GIT_MODE", "agent")
+    monkeypatch.setenv("GIT_SHIM_MODE", "agent")
 
     assert main(["explain", "--json", "push"]) == 0
 
@@ -91,8 +91,8 @@ def test_explain_refusal_is_inspectable_and_never_runs_git(
 def test_explain_environment_is_dry_run_even_for_explicit_human_mode(
     isolated_env, fake_git, monkeypatch, capsys, mode
 ):
-    monkeypatch.setenv("UV_SHIM_GIT_MODE", mode)
-    monkeypatch.setenv("UV_SHIM_GIT_EXPLAIN", "1")
+    monkeypatch.setenv("GIT_SHIM_MODE", mode)
+    monkeypatch.setenv("GIT_SHIM_EXPLAIN", "1")
 
     assert run_git(["push"]) == 0
 
@@ -136,7 +136,7 @@ def test_explain_never_executes_token_command(
     )
     repo = temp_repo(remotes={"origin": "https://github.com/acme/app.git"})
     monkeypatch.chdir(repo.path)
-    monkeypatch.setenv("UV_SHIM_GIT_MODE", "agent")
+    monkeypatch.setenv("GIT_SHIM_MODE", "agent")
 
     assert main(["explain", "--json", "push"]) == 0
 
@@ -152,7 +152,7 @@ def test_explain_invalid_remote_does_not_disclose_embedded_credentials(
     secret = "£¤¥¦§©«¬®°±µ¶"
     repo = temp_repo(remotes={"origin": f"https://{secret}@github.com/incomplete"})
     monkeypatch.chdir(repo.path)
-    monkeypatch.setenv("UV_SHIM_GIT_MODE", "agent")
+    monkeypatch.setenv("GIT_SHIM_MODE", "agent")
 
     assert main(["explain", "--json", "push"]) == 0
 
@@ -174,7 +174,7 @@ key_file = "~/.ssh/not-provisioned-yet"
     )
     repo = temp_repo(remotes={"origin": "git@github.com:acme/app.git"})
     monkeypatch.chdir(repo.path)
-    monkeypatch.setenv("UV_SHIM_GIT_MODE", "agent")
+    monkeypatch.setenv("GIT_SHIM_MODE", "agent")
 
     assert main(["explain", "--json", "push"]) == 0
 

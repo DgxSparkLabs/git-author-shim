@@ -52,16 +52,48 @@ def test_skips_hard_link_to_shim(executable, tmp_path):
     assert discovery.find_real_git(shim_path=shim, env=env) == str(real)
 
 
+def test_skips_sibling_git_shadow_launcher(executable, tmp_path):
+    scripts = tmp_path / "scripts"
+    scripts.mkdir()
+    shim_name = "git-shim.exe" if os.name == "nt" else "git-shim"
+    git_name = "git.exe" if os.name == "nt" else "git"
+    shim = scripts / shim_name
+    shadow = scripts / git_name
+    shim.write_bytes(b"shim\n")
+    shadow.write_bytes(b"shadow\n")
+    shim.chmod(0o755)
+    shadow.chmod(0o755)
+    real = executable("real")
+    env = {"PATH": os.pathsep.join(map(str, [scripts, real.parent]))}
+    assert discovery.find_real_git(shim_path=shim, env=env) == str(real)
+    assert discovery.find_real_git(shim_path=shadow, env=env) == str(real)
+
+
+def test_bare_argv0_does_not_select_the_shim_from_path(executable, tmp_path, monkeypatch):
+    scripts = tmp_path / "scripts"
+    scripts.mkdir()
+    git_name = "git.exe" if os.name == "nt" else "git"
+    shim = scripts / git_name
+    shim.write_bytes(b"shim\n")
+    shim.chmod(0o755)
+    real = executable("real")
+    env = {"PATH": os.pathsep.join(map(str, [scripts, real.parent]))}
+    monkeypatch.chdir(tmp_path)
+    assert discovery.find_real_git(shim_path="git", env=env) == str(real)
+    if os.name == "nt":
+        assert discovery.find_real_git(shim_path="git.exe", env=env) == str(real)
+
+
 def test_explicit_override_takes_precedence_over_path(executable):
     override = executable("chosen")
     other = executable("other")
-    env = {"UV_SHIM_GIT_REAL_PATH": str(override), "PATH": str(other.parent)}
+    env = {"GIT_SHIM_REAL_PATH": str(override), "PATH": str(other.parent)}
     assert discovery.find_real_git(shim_path=other, env=env) == str(override)
 
 
 def test_invalid_override_does_not_silently_fall_back(executable, tmp_path):
     real = executable("real")
-    env = {"UV_SHIM_GIT_REAL_PATH": str(tmp_path / "missing"), "PATH": str(real.parent)}
+    env = {"GIT_SHIM_REAL_PATH": str(tmp_path / "missing"), "PATH": str(real.parent)}
     with pytest.raises(FileNotFoundError):
         discovery.find_real_git(shim_path=tmp_path / "shim", env=env)
 
@@ -69,7 +101,7 @@ def test_invalid_override_does_not_silently_fall_back(executable, tmp_path):
 def test_override_cannot_select_the_shim(executable):
     shim = executable("shim")
     real = executable("real")
-    env = {"UV_SHIM_GIT_REAL_PATH": str(shim), "PATH": str(real.parent)}
+    env = {"GIT_SHIM_REAL_PATH": str(shim), "PATH": str(real.parent)}
     with pytest.raises(FileNotFoundError):
         discovery.find_real_git(shim_path=shim, env=env)
 
@@ -130,12 +162,12 @@ def test_windows_uses_standard_extensions_when_pathext_missing(executable, tmp_p
     "value, expected", [(None, False), ("0", False), ("true", False), ("1", True)]
 )
 def test_continuation_requires_exact_sentinel(value, expected):
-    env = {} if value is None else {"__UV_SHIM_GIT_CONTINUATION": value}
+    env = {} if value is None else {"__GIT_SHIM_CONTINUATION": value}
     assert discovery.is_continuation(env) is expected
 
 
 def test_continuation_defaults_to_process_environment(monkeypatch):
-    monkeypatch.setenv("__UV_SHIM_GIT_CONTINUATION", "1")
+    monkeypatch.setenv("__GIT_SHIM_CONTINUATION", "1")
     assert discovery.is_continuation() is True
     assert discovery.is_continuation({}) is False
 
@@ -143,6 +175,6 @@ def test_continuation_defaults_to_process_environment(monkeypatch):
 def test_inject_continuation_preserves_parent_and_child_identity():
     parent = {"GIT_AUTHOR_NAME": "Existing Author", "GIT_COMMITTER_NAME": "Bot"}
     child = discovery.inject_continuation(parent)
-    assert child == {**parent, "__UV_SHIM_GIT_CONTINUATION": "1"}
-    assert "__UV_SHIM_GIT_CONTINUATION" not in parent
+    assert child == {**parent, "__GIT_SHIM_CONTINUATION": "1"}
+    assert "__GIT_SHIM_CONTINUATION" not in parent
     assert discovery.is_continuation(child) is True

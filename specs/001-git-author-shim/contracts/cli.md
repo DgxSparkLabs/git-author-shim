@@ -2,9 +2,14 @@
 
 **Feature**: [spec.md](../spec.md) · **Plan**: [plan.md](../plan.md) · **Status**: Completed
 
-## 1. Primary Executable: `git`
+## 1. Distribution and Invocation
 
-The shim is distributed as an executable named `git` (or `git.exe` on Windows).
+The package installs two console scripts: `git` (`git_author_shim.__main__:main`) and `git-shim` (`git_author_shim.cli:main`). `uv tool install` has no flag that selects a subset of `[project.scripts]`; it installs both. On Windows the `git` entry is a real `git.exe` trampoline that `CreateProcessW` can execute without a shell (a `.cmd` wrapper is skipped by `subprocess.run(["git", ...], shell=False)` and by agent spawners).
+
+- **Option 1 — Transparent shadowing (default):** the installed `git` trampoline runs the full shim. Coding agents that spawn `git` without a shell are intercepted.
+- **Option 2 — Passthrough / coexistence:** `git-shim shadow disable` writes a marker so `git` passes through to real Git with no identity injection. `git-shim` still runs the full shim. `git-shim shadow enable` restores interception. `GIT_SHIM_SHADOW=0` / `1` overrides the marker for one process.
+
+When the process is invoked as `git` (the `argv[0]` stem is `git`), every argument is a Git invocation — management commands are not intercepted. `git-shim explain` / `trust` / `untrust` / `list-identities` / `shadow` remain on the `git-shim` executable.
 
 ### 1.1 Passthrough Contract (FR-001, FR-003)
 * All standard arguments, subcommands, and flags passed to `git <args>` are forwarded directly to the real Git binary.
@@ -18,14 +23,15 @@ The shim is distributed as an executable named `git` (or `git.exe` on Windows).
 
 | Variable | Values | Default | Purpose |
 | :--- | :--- | :--- | :--- |
-| `UV_SHIM_GIT_MODE` | `auto`, `agent`, `human` | `auto` | Explicitly sets the identity mode (FR-007, FR-010). Overrides auto-detection. |
-| `UV_SHIM_GIT_CONFIG` | `<filepath>` | `~/.config/uv-shims/git.toml` | Path to the global shim configuration file. |
-| `UV_SHIM_GIT_EXPLAIN` | `1`, `true` | Unset | When set, prints the resolved invocation plan (secrets redacted) and exits 0 without calling real Git (FR-021). |
-| `UV_SHIM_GIT_REAL_PATH` | `<filepath>` | Auto-detected | Explicit path to the real Git binary to bypass auto-discovery. |
-| `__UV_SHIM_GIT_CONTINUATION` | `1` | Unset | Internal sentinel injected into child processes to prevent infinite recursive self-invocation (FR-001, US6). |
+| `GIT_SHIM_MODE` | `auto`, `agent`, `human` | `auto` | Explicitly sets the identity mode (FR-007, FR-010). Overrides auto-detection. |
+| `GIT_SHIM_CONFIG` | `<filepath>` | `~/.git-shim/config.toml` | Path to the global shim configuration file. |
+| `GIT_SHIM_EXPLAIN` | `1`, `true` | Unset | When set, prints the resolved invocation plan (secrets redacted) and exits 0 without calling real Git (FR-021). |
+| `GIT_SHIM_REAL_PATH` | `<filepath>` | Auto-detected | Explicit path to the real Git binary to bypass auto-discovery. |
+| `GIT_SHIM_SHADOW` | `1`/`0`, `true`/`false`, `on`/`off` | Unset | Force the `git` trampoline into full shim (`1`) or passthrough (`0`), overriding the `.git-shim-shadow` marker. |
+| `__GIT_SHIM_CONTINUATION` | `1` | Unset | Internal sentinel injected into child processes to prevent infinite recursive self-invocation (FR-001, US6). |
 
 ### 2.1 Recognized Vendor Agent Markers (Auto-Detection)
-Under `UV_SHIM_GIT_MODE=auto`, the presence of any of the following environment variables triggers `agent` mode:
+Under `GIT_SHIM_MODE=auto`, the presence of any of the following environment variables triggers `agent` mode:
 * `AGENT_ID`
 * `CLAUDE_CODE` / `CLAUDE_AGENT`
 * `CODEX_SANDBOX`
@@ -37,7 +43,7 @@ Under `UV_SHIM_GIT_MODE=auto`, the presence of any of the following environment 
 
 ## 3. Dedicated Inspection CLI: `git-shim`
 
-In addition to acting as `git`, the package exposes `git-shim` for operator management.
+`git-shim` is the operator management CLI. It also accepts Git arguments so coexistence matches a shadowed `git`.
 
 ### 3.1 Commands
 
@@ -112,3 +118,12 @@ Removes the specified file from the trusted registry.
 
 #### `git-shim list-identities`
 Lists all globally configured bot identities and their matching patterns.
+
+#### `git-shim shadow enable`
+Writes `.git-shim-shadow` with `enabled` beside the uv-installed `git` trampoline. The trampoline itself is created by `uv tool install` / `uv sync` from `[project.scripts]` (`git = git_author_shim.__main__:main`) and is never generated as a `.cmd`. Warns if that directory does not precede system Git on `PATH`.
+
+#### `git-shim shadow disable`
+Writes `.git-shim-shadow` with `disabled`. The `git` trampoline stays on PATH but passes through to real Git with no identity injection. `git-shim` is unchanged.
+
+#### `git-shim shadow status`
+Prints the `git-shim` launcher path, whether the `git` trampoline is in full-shim or passthrough mode, and which `git` currently wins on `PATH`.

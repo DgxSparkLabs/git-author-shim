@@ -37,7 +37,7 @@ Build a transparent CLI shim named `git` that intercepts AI coding agent invocat
 | Principle | Requirement / Gate | Status | Notes |
 | :--- | :--- | :--- | :--- |
 | **I. Augment Full Invocation, Then Delegate** | Preserve all flags/args, stdio, exit codes, and terminating signals across local/remote executions. | **PASS** | `os.execv` / `subprocess.Popen` with standard signal forwarding and full argument passthrough. |
-| **II. Explicit Invocation Contracts** | Declare all modified env vars, provide dry-run / explain inspection. | **PASS** | `git-shim explain` CLI and `UV_SHIM_GIT_EXPLAIN=1` provide structured inspection with zero execution. |
+| **II. Explicit Invocation Contracts** | Declare all modified env vars, provide dry-run / explain inspection. | **PASS** | `git-shim explain` CLI and `GIT_SHIM_EXPLAIN=1` provide structured inspection with zero execution. |
 | **III. Secret Handling (NON-NEGOTIABLE)** | Secrets never in `argv`, never in URLs, redacted in logs/output, sourced from secure locations. | **PASS** | Secrets injected via ephemeral credential helpers / stdio; strictly redacted in all diagnostics. |
 | **IV. Cross-Platform Parity** | Equivalent behavior on Windows, macOS, and Linux. | **PASS** | Explicit handling of `PATHEXT`, `.exe` binaries, Windows `NUL` vs `/dev/null`, and platform signals. |
 | **V. Test-First (NON-NEGOTIABLE)** | Red-Green-Refactor; tests for passthrough, secret redaction, and error fail-safe before implementation. | **PASS** | Test suite organized into unit, contract, and integration tests covering all 12 user stories. |

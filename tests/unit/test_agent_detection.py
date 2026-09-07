@@ -12,7 +12,7 @@ def configured(**settings):
 
 def test_agent_override_forces_agent_without_markers():
     config = configured(default_mode=IdentityMode.HUMAN)
-    assert resolve_identity_mode(config, {"UV_SHIM_GIT_MODE": "agent"}) == (
+    assert resolve_identity_mode(config, {"GIT_SHIM_MODE": "agent"}) == (
         IdentityMode.AGENT,
         None,
     )
@@ -20,7 +20,7 @@ def test_agent_override_forces_agent_without_markers():
 
 def test_human_override_wins_over_agent_configuration_and_markers():
     config = configured(default_mode=IdentityMode.AGENT)
-    env = {"UV_SHIM_GIT_MODE": "human", "AGENT_ID": "worker"}
+    env = {"GIT_SHIM_MODE": "human", "AGENT_ID": "worker"}
     assert resolve_identity_mode(config, env) == (IdentityMode.HUMAN, None)
 
 
@@ -44,12 +44,12 @@ def test_marker_presence_including_empty_value_activates_agent():
 
 def test_auto_override_reevaluates_instead_of_using_configured_mode():
     config = configured(default_mode=IdentityMode.AGENT)
-    assert resolve_identity_mode(config, {"UV_SHIM_GIT_MODE": "auto"}) == (
+    assert resolve_identity_mode(config, {"GIT_SHIM_MODE": "auto"}) == (
         IdentityMode.HUMAN,
         None,
     )
     human_config = configured(default_mode=IdentityMode.HUMAN)
-    assert resolve_identity_mode(human_config, {"UV_SHIM_GIT_MODE": "auto", "AGENT_ID": "1"}) == (
+    assert resolve_identity_mode(human_config, {"GIT_SHIM_MODE": "auto", "AGENT_ID": "1"}) == (
         IdentityMode.AGENT,
         "AGENT_ID",
     )
@@ -109,4 +109,4 @@ def test_omitted_environment_reads_process_environment_but_empty_mapping_does_no
 
 def test_unknown_mode_is_rejected_instead_of_silently_enabling_human():
     with pytest.raises(ValueError):
-        resolve_identity_mode(configured(), {"UV_SHIM_GIT_MODE": "agnet"})
+        resolve_identity_mode(configured(), {"GIT_SHIM_MODE": "agnet"})

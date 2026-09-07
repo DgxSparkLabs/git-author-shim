@@ -26,7 +26,7 @@ from pathlib import Path
 import pytest
 
 _SRC = Path(__file__).resolve().parents[2] / "src"
-_SENTINEL = "__UV_SHIM_GIT_CONTINUATION"
+_SENTINEL = "__GIT_SHIM_CONTINUATION"
 
 
 def shim_env(**overrides: str | None) -> dict[str, str]:
@@ -106,7 +106,7 @@ def test_missing_real_git_fails_with_an_actionable_message(tmp_path):
     result = run_shim("status", env=shim_env(PATH=str(empty)))
 
     assert result.returncode == 1
-    assert "UV_SHIM_GIT_REAL_PATH" in result.stderr
+    assert "GIT_SHIM_REAL_PATH" in result.stderr
 
 
 # --------------------------------------------------------------------------------------
@@ -233,7 +233,7 @@ def test_sigterm_reaches_the_child_git_process(tmp_path):
 
     process = subprocess.Popen(  # noqa: S603
         [sys.executable, "-m", "git_author_shim", "commit"],
-        env=shim_env(UV_SHIM_GIT_REAL_PATH=str(trapping_git)),
+        env=shim_env(GIT_SHIM_REAL_PATH=str(trapping_git)),
         cwd=str(tmp_path),
     )
     try:

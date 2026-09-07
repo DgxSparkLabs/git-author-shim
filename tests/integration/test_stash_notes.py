@@ -18,8 +18,8 @@ def bot_repo(isolated_env, temp_repo, monkeypatch):
     isolated_env.write_config(_CONFIG)
     repo = temp_repo(remotes={"origin": "https://github.com/acme/app.git"})
     monkeypatch.chdir(repo.path)
-    monkeypatch.setenv("UV_SHIM_GIT_MODE", "agent")
-    monkeypatch.setenv("UV_SHIM_GIT_REAL_PATH", repo.git_binary)
+    monkeypatch.setenv("GIT_SHIM_MODE", "agent")
+    monkeypatch.setenv("GIT_SHIM_REAL_PATH", repo.git_binary)
     for role in ("AUTHOR", "COMMITTER"):
         monkeypatch.setenv(f"GIT_{role}_NAME", "Human Operator")
         monkeypatch.setenv(f"GIT_{role}_EMAIL", "human@example.invalid")

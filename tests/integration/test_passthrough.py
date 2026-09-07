@@ -132,7 +132,7 @@ def test_explicit_human_override_ignores_agent_markers(isolated_env, fake_git, t
         "commit",
         "-m",
         "operator work",
-        env=shim_env(AGENT_ID="agent-worker-9", UV_SHIM_GIT_MODE="human"),
+        env=shim_env(AGENT_ID="agent-worker-9", GIT_SHIM_MODE="human"),
         cwd=repo.path,
     )
 
@@ -144,7 +144,7 @@ def test_explicit_human_override_ignores_agent_markers(isolated_env, fake_git, t
 def test_explicit_human_override_never_reads_the_shim_configuration(isolated_env, fake_git):
     isolated_env.write_config("this is not valid TOML = = =\n")
 
-    result = run_shim("status", env=shim_env(UV_SHIM_GIT_MODE="human"))
+    result = run_shim("status", env=shim_env(GIT_SHIM_MODE="human"))
 
     assert result.returncode == 0, result.stderr
     assert fake_git.last_call.argv == ["status"]
@@ -155,7 +155,7 @@ def test_human_mode_commit_records_the_operator_identity(isolated_env, temp_repo
     repo.config("user.name", "Operator")
     repo.config("user.email", "operator@example.invalid")
     env = shim_env(
-        UV_SHIM_GIT_REAL_PATH=repo.git_binary,
+        GIT_SHIM_REAL_PATH=repo.git_binary,
         GIT_CONFIG_NOSYSTEM="1",
         GIT_CONFIG_GLOBAL=str(isolated_env.home / ".gitconfig-absent"),
     )

@@ -20,7 +20,7 @@ token_env_var = "BOT_TOKEN"
 """)
     repo = temp_repo(remotes={"origin": "https://github.com/acme/app.git"})
     monkeypatch.chdir(repo.path)
-    environment = dict(os.environ, UV_SHIM_GIT_MODE="agent", BOT_TOKEN="benchmark-token")
+    environment = dict(os.environ, GIT_SHIM_MODE="agent", BOT_TOKEN="benchmark-token")
     # push resolves the complete config/mode/repository/identity/credential plan,
     # without commit's external sequencer probe. Warm lazy imports and OS caches.
     argv = ["push", "origin", "main"]

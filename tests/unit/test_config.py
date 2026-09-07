@@ -120,17 +120,10 @@ def test_default_config_path_is_home_git_shim_config_toml(isolated_env) -> None:
     assert default_config_path() == isolated_env.home / ".git-shim" / "config.toml"
 
 
-def test_default_config_path_prefers_git_shim_config_over_legacy(isolated_env, tmp_path) -> None:
+def test_default_config_path_honors_git_shim_config(isolated_env, tmp_path) -> None:
     override = tmp_path / "custom.toml"
     isolated_env.setenv("GIT_SHIM_CONFIG", str(override))
-    isolated_env.setenv("UV_SHIM_GIT_CONFIG", str(tmp_path / "legacy.toml"))
     assert default_config_path() == override
-
-
-def test_default_config_path_falls_back_to_uv_shim_git_config(isolated_env, tmp_path) -> None:
-    legacy = tmp_path / "legacy.toml"
-    isolated_env.setenv("UV_SHIM_GIT_CONFIG", str(legacy))
-    assert default_config_path() == legacy
 
 
 def test_default_config_path_uses_git_toml_when_config_toml_is_absent(isolated_env) -> None:

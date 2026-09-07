@@ -18,7 +18,7 @@ REAL_GIT="$(command -v git)"
 uv venv
 uv pip install -e .
 . .venv/bin/activate
-export UV_SHIM_GIT_REAL_PATH="$REAL_GIT"
+export GIT_SHIM_REAL_PATH="$REAL_GIT"
 command -v git
 command -v git-shim
 ```
@@ -33,8 +33,8 @@ your normal shim configuration or modify your global Git identity:
 
 ```sh
 WORKSPACE="$(mktemp -d)"
-export UV_SHIM_GIT_CONFIG="$WORKSPACE/git.toml"
-cat > "$UV_SHIM_GIT_CONFIG" <<'TOML'
+export GIT_SHIM_CONFIG="$WORKSPACE/git.toml"
+cat > "$GIT_SHIM_CONFIG" <<'TOML'
 [[identities]]
 id = "acme-github"
 name = "Acme Automation Bot"
@@ -48,10 +48,10 @@ TOML
 git-shim list-identities
 mkdir "$WORKSPACE/test-repo"
 cd "$WORKSPACE/test-repo"
-UV_SHIM_GIT_MODE=human git init -b main
-UV_SHIM_GIT_MODE=human git config user.name "Operator"
-UV_SHIM_GIT_MODE=human git config user.email "operator@example.invalid"
-UV_SHIM_GIT_MODE=human git remote add origin git@github.com:acme-corp/test-repo.git
+GIT_SHIM_MODE=human git init -b main
+GIT_SHIM_MODE=human git config user.name "Operator"
+GIT_SHIM_MODE=human git config user.email "operator@example.invalid"
+GIT_SHIM_MODE=human git remote add origin git@github.com:acme-corp/test-repo.git
 ```
 
 The configured SSH key is not needed for local commits. For a real network push,
@@ -63,7 +63,7 @@ An explicit human override makes the scenario independent of inherited agent
 markers. Human mode leaves the operator's author, committer, and credentials alone.
 
 ```sh
-export UV_SHIM_GIT_MODE=human
+export GIT_SHIM_MODE=human
 git-shim explain --json status
 # mode: "human", is_write: false
 
@@ -72,13 +72,13 @@ git config user.name
 ```
 
 No shim invocation writes `~/.gitconfig` or `~/.ssh/config`. To exercise automatic
-human detection instead, unset `UV_SHIM_GIT_MODE` and all configured/vendor agent
+human detection instead, unset `GIT_SHIM_MODE` and all configured/vendor agent
 markers before running explain.
 
 ## Scenario 2: Agent commit and SSH push plan
 
 ```sh
-unset UV_SHIM_GIT_MODE
+unset GIT_SHIM_MODE
 export AGENT_ID=test-agent-01
 printf 'hello world\n' > hello.txt
 git add hello.txt
@@ -104,8 +104,8 @@ attribution.
 
 ```sh
 printf 'human contribution\n' > human.txt
-UV_SHIM_GIT_MODE=human git add human.txt
-UV_SHIM_GIT_MODE=human git commit -m "human work" --author='Jane Doe <jane@company.com>'
+GIT_SHIM_MODE=human git add human.txt
+GIT_SHIM_MODE=human git commit -m "human work" --author='Jane Doe <jane@company.com>'
 HUMAN_HASH="$(git rev-parse HEAD)"
 git checkout -b feature-backport HEAD~1
 git cherry-pick "$HUMAN_HASH"
@@ -123,7 +123,7 @@ git init -b main
 git remote add origin git@github.com:random-stranger/repo.git
 git commit --allow-empty -m "must not commit"
 # Nonzero exit; diagnostic identifies the unmatched repository and a remedy.
-UV_SHIM_GIT_MODE=human git rev-parse --verify HEAD
+GIT_SHIM_MODE=human git rev-parse --verify HEAD
 # Nonzero exit: no commit was created.
 ```
 

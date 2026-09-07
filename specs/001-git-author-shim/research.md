@@ -20,7 +20,7 @@ The `git` shim augments the execution context of `git` commands invoked by auton
   * *Go*: Good single-binary distribution, but requires Go toolchain setup in Python-centric `uv-shims` project.
 
 ### Decision 2: Real Git Binary Discovery & Recursion Prevention
-* **Decision**: The shim discovers the underlying real Git binary by scanning `PATH` (using `PATHEXT` on Windows) while skipping its own executable path. On child process invocation, it sets an internal marker environment variable (`__UV_SHIM_GIT_CONTINUATION=1`).
+* **Decision**: The shim discovers the underlying real Git binary by scanning `PATH` (using `PATHEXT` on Windows) while skipping its own executable path. On child process invocation, it sets an internal marker environment variable (`__GIT_SHIM_CONTINUATION=1`).
 * **Rationale**: When the shim binary is placed in `/usr/local/bin` or a virtual environment `bin/` directory ahead of system Git, child processes (e.g., pre-commit hooks, git aliases, submodule updates) would otherwise invoke the shim in an infinite loop.
 * **Security Guardrail**: The continuation sentinel serves strictly as a recursion loop break—it does NOT bypass security authorization, host-matching validation, or fail-closed rules on distinct child operations.
 ### Decision 3: Commit Classification & Sequencer State Detection
@@ -83,4 +83,4 @@ The `git` shim augments the execution context of `git` commands invoked by auton
 | **Multi-remote identity collision** | Repo with `origin` (GitHub) and `upstream` (GitLab) resolves to wrong bot due to pattern specificity tie/win. | Prioritize tracked upstream/origin remote; fail closed if remotes resolve to conflicting bot identities. |
 | **`--git-path` non-existent paths** | `git rev-parse --git-path` emits path strings even when no sequencer file exists. | Explicitly verify `os.path.exists()` on every returned path in the classifier. |
 | **Bare repository crash on probe** | Probing `--show-toplevel` inside a bare repository crashes with exit 128. | Check bare repo state first; omit worktree probes in bare repositories. |
-| **Infinite loop on recursion** | Hook/alias re-invoking `git` triggers infinite shim loop. | Inject `__UV_SHIM_GIT_CONTINUATION=1` into child environment to break recursion while preserving security boundaries. |
+| **Infinite loop on recursion** | Hook/alias re-invoking `git` triggers infinite shim loop. | Inject `__GIT_SHIM_CONTINUATION=1` into child environment to break recursion while preserving security boundaries. |
