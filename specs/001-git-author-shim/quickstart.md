@@ -1,130 +1,170 @@
 # Quickstart & Validation Guide: Git Author Identity Shim
 
-**Feature**: [spec.md](./spec.md) · **Plan**: [plan.md](./plan.md) · **Status**: Completed
+**Feature**: [spec.md](./spec.md) · **Plan**: [plan.md](./plan.md)
 
-This guide walks through end-to-end setup and validation scenarios to verify all user stories in a local environment.
+These five scenarios run locally, without a hosting account or network access. They
+exercise the installed `git` and `git-shim` console scripts, not mocked Git. The
+push in scenario 2 is deliberately an **inspection-only dry run**; a real push
+requires an authorized bot key and a reachable repository.
 
----
+## Prerequisites and installation
 
-## Prerequisites
+Install Python 3.12+, [uv](https://docs.astral.sh/uv/), and system Git. Run these
+POSIX-shell commands from the `uv-shims` checkout, before activating its environment:
 
-1. Python 3.12+ and `uv` installed.
-2. System Git installed and reachable on system `PATH`.
-3. An SSH key pair generated for testing (e.g. `ssh-keygen -t ed25519 -f ./test_bot_key -N ""`).
-
----
-
-## 1. Setup & Installation
-
-```bash
-# 1. Install the package in editable mode
+```sh
+# Save the real binary before putting the shim first on PATH.
+REAL_GIT="$(command -v git)"
+uv venv
 uv pip install -e .
-
-# 2. Place the shim ahead of Git in PATH (or activate environment)
-export PATH="$(pwd)/.venv/bin:$PATH"  # or Windows Scripts path
-
-# 3. Verify the shim intercepts `git`
-which git
-# Output should point to the virtual environment's git executable
+. .venv/bin/activate
+export UV_SHIM_GIT_REAL_PATH="$REAL_GIT"
+command -v git
+command -v git-shim
 ```
 
----
+On Windows, use the PowerShell installation commands in [README.md](../../README.md).
+The scenarios below use POSIX shell syntax; on PowerShell, set variables with
+`$env:NAME = 'value'`, unset them with `Remove-Item Env:NAME`, and use `Set-Content`
+instead of `printf`/heredocs. The same Git arguments and assertions apply.
 
-## 2. Validation Scenarios
+Create a dedicated temporary workspace and configuration; this does not replace
+your normal shim configuration or modify your global Git identity:
 
-### Scenario 1: Verify Operator Passthrough (User Story 2)
-Verify that normal human operations remain completely untouched and leave global configs unmodified.
+```sh
+WORKSPACE="$(mktemp -d)"
+export UV_SHIM_GIT_CONFIG="$WORKSPACE/git.toml"
+cat > "$UV_SHIM_GIT_CONFIG" <<'TOML'
+[[identities]]
+id = "acme-github"
+name = "Acme Automation Bot"
+email = "bot@acme.corp"
+match_patterns = ["github.com/acme-corp/*"]
 
-```bash
-# Unset any agent variables
-unset AGENT_ID
+[identities.ssh]
+key_file = "~/.ssh/acme_bot_ed25519"
+TOML
+
+git-shim list-identities
+mkdir "$WORKSPACE/test-repo"
+cd "$WORKSPACE/test-repo"
+UV_SHIM_GIT_MODE=human git init -b main
+UV_SHIM_GIT_MODE=human git config user.name "Operator"
+UV_SHIM_GIT_MODE=human git config user.email "operator@example.invalid"
+UV_SHIM_GIT_MODE=human git remote add origin git@github.com:acme-corp/test-repo.git
+```
+
+The configured SSH key is not needed for local commits. For a real network push,
+generate/register a bot key at that path and provision verified host keys first.
+
+## Scenario 1: Human passthrough
+
+An explicit human override makes the scenario independent of inherited agent
+markers. Human mode leaves the operator's author, committer, and credentials alone.
+
+```sh
+export UV_SHIM_GIT_MODE=human
+git-shim explain --json status
+# mode: "human", is_write: false
+
+git config user.name
+# Operator (the repository-local value configured above)
+```
+
+No shim invocation writes `~/.gitconfig` or `~/.ssh/config`. To exercise automatic
+human detection instead, unset `UV_SHIM_GIT_MODE` and all configured/vendor agent
+markers before running explain.
+
+## Scenario 2: Agent commit and SSH push plan
+
+```sh
 unset UV_SHIM_GIT_MODE
-
-# Run explain
-git-shim explain
-# Expected Output: Mode: human (no marker detected). Passthrough active.
-
-# Inspect git configs
-git config --global user.name
-# Should match operator's real name unchanged.
-```
-
-### Scenario 2: Agent Commit & Push under Bot Identity (User Stories 1 & 3)
-Verify automated commit authoring and committer attribution.
-
-```bash
-# 1. Set agent marker
-export AGENT_ID="test-agent-01"
-
-# 2. Initialize a temporary repository matching configured pattern
-mkdir /tmp/test-repo && cd /tmp/test-repo
-git init
-git remote add origin git@github.com:acme-corp/test-repo.git
-
-# 3. Create a commit
-echo "hello world" > README.md
-git add README.md
-git commit -m "feat: initial agent commit"
-
-# 4. Inspect commit log
-git log -1 --format="Author: %an <%ae>%nCommitter: %cn <%ce>"
-# Expected Output:
+export AGENT_ID=test-agent-01
+printf 'hello world\n' > hello.txt
+git add hello.txt
+git commit -m "initial agent commit"
+git log -1 --format='Author: %an <%ae>%nCommitter: %cn <%ce>'
 # Author: Acme Automation Bot <bot@acme.corp>
 # Committer: Acme Automation Bot <bot@acme.corp>
+
+git-shim explain --json push origin main
+# mode: "agent", transport: "ssh", matched_identity_id: "acme-github"
+# No push occurs and the private key is not read.
 ```
 
-### Scenario 3: Author Preservation during Cherry-Pick (User Story 7)
-Verify that replaying a human commit preserves original author while setting bot as committer.
+Explain reports the proposed plan, not successful authentication. A real
+`git push origin main` contacts GitHub and needs a repository you control and a
+usable bot key; do not run it against the example remote.
 
-```bash
-# Create a human commit
-UV_SHIM_GIT_MODE=human git commit --allow-empty -m "human work" --author="Jane Doe <jane@company.com>"
-HUMAN_HASH=$(git rev-parse HEAD)
+## Scenario 3: Preserve a cherry-picked human author
 
-# Switch to a new branch and cherry-pick as agent
-git checkout -b feature-backport
-git cherry-pick $HUMAN_HASH
+Create a **nonempty** human change and branch from its **parent** before replaying
+it. Cherry-picking onto the same commit would be empty and would not validate
+attribution.
 
-# Inspect attribution
-git log -1 --format="Author: %an <%ae>%nCommitter: %cn <%ce>"
-# Expected Output:
+```sh
+printf 'human contribution\n' > human.txt
+UV_SHIM_GIT_MODE=human git add human.txt
+UV_SHIM_GIT_MODE=human git commit -m "human work" --author='Jane Doe <jane@company.com>'
+HUMAN_HASH="$(git rev-parse HEAD)"
+git checkout -b feature-backport HEAD~1
+git cherry-pick "$HUMAN_HASH"
+git log -1 --format='Author: %an <%ae>%nCommitter: %cn <%ce>'
 # Author: Jane Doe <jane@company.com>
 # Committer: Acme Automation Bot <bot@acme.corp>
 ```
 
-### Scenario 4: Fail-Safe on Unconfigured Repo (User Story 4)
-Verify that write operations halt with an actionable error in unconfigured repos.
+## Scenario 4: Refuse an unconfigured agent write
 
-```bash
-mkdir /tmp/unconfigured-repo && cd /tmp/unconfigured-repo
-git init
+```sh
+mkdir "$WORKSPACE/unconfigured-repo"
+cd "$WORKSPACE/unconfigured-repo"
+git init -b main
 git remote add origin git@github.com:random-stranger/repo.git
-
-# Attempt a commit as agent
-echo "code" > main.py
-git add main.py
-git commit -m "test"
-# Expected Outcome:
-# Command halts with non-zero exit code.
-# Output: "Error: No bot identity configured matching repository 'github.com/random-stranger/repo'. Write operation refused."
+git commit --allow-empty -m "must not commit"
+# Nonzero exit; diagnostic identifies the unmatched repository and a remedy.
+UV_SHIM_GIT_MODE=human git rev-parse --verify HEAD
+# Nonzero exit: no commit was created.
 ```
 
-### Scenario 5: Content-Hash Trust Gate (User Story 8)
-Verify that untrusted repository-level `.git-shim.toml` is ignored until trusted.
+Read-only operations remain available. Fix the global match pattern rather than
+using human mode for agent work; the human override is an intentional operator
+escape hatch, not a recommended workaround for missing bot configuration.
 
-```bash
-cd /tmp/test-repo
-echo 'identity = "malicious-bot"' > .git-shim.toml
+## Scenario 5: Content-hash trust gate
 
-# Explain output should warn that local config is untrusted and ignore it
-git-shim explain
+Use an existing global identity and a visible local name override. An untrusted
+or changed local file is ignored, falling back to the global identity.
 
-# Trust the file
+```sh
+cd "$WORKSPACE/test-repo"
+cat > .git-shim.toml <<'TOML'
+identity = "acme-github"
+[override]
+name = "Acme Release Bot"
+TOML
+
+git-shim explain --json commit
+# author.name: "Acme Automation Bot" (untrusted override ignored)
 git-shim trust .git-shim.toml
+git-shim explain --json commit
+# author.name: "Acme Release Bot"
 
-# Edit the file (tamper with content)
-echo 'identity = "tampered-bot"' > .git-shim.toml
-
-# Explain output should detect invalid hash and refuse to load untrusted override
-git-shim explain
+cat > .git-shim.toml <<'TOML'
+identity = "acme-github"
+[override]
+name = "Tampered Bot"
+TOML
+git-shim explain --json commit
+# author.name: "Acme Automation Bot" (content hash no longer matches)
+git-shim untrust .git-shim.toml
 ```
+
+## Verification record
+
+The five scenarios were exercised with the installed console scripts and real Git
+on Windows/Python 3.14: human passthrough, bot commit plus SSH push dry-run,
+nonempty cherry-pick author preservation, refusal with no commit created, and the
+untrusted → trusted → content-changed override transition. The operator global
+Git configuration was hash-checked unchanged. No live hosting-service push was
+performed by this quickstart validation.
