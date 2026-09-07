@@ -4,8 +4,9 @@
 create a real ``git.exe`` (Windows) or ``git`` (POSIX) trampoline that
 ``CreateProcessW`` / ``execve`` can run without a shell. This module does not
 create or delete that trampoline. It writes a marker that the ``git`` entry
-point reads: when shadow is disabled, ``git`` passes through to real Git with
-no identity injection.
+point reads: shadow is off until the operator runs ``git-shim shadow enable``,
+so a fresh install does not hijack system Git. When shadow is disabled, ``git``
+passes through to real Git with no identity injection.
 """
 
 from __future__ import annotations
@@ -104,8 +105,10 @@ def is_shadow_enabled(argv0: str | None = None, env=None) -> bool:
     """True when the ``git`` trampoline should run the full shim.
 
     Precedence: ``GIT_SHIM_SHADOW`` (truthy/falsy), then the marker file beside
-    the launcher. Missing marker defaults to enabled — ``uv`` installs ``git``
-    as the shim.
+    the launcher. A missing marker defaults to disabled so installing the
+    ``git`` console script does not intercept the operator's Git. Only an
+    explicit truthy env override or a truthy marker value (``enabled``, ``1``,
+    ``true``, ``on``, ``yes``) turns shadowing on.
     """
 
     environment = os.environ if env is None else env
@@ -117,11 +120,11 @@ def is_shadow_enabled(argv0: str | None = None, env=None) -> bool:
     try:
         launcher = resolve_shim_executable(argv0 or sys.argv[0])
     except ShadowError:
-        return True
+        return False
     state = _read_marker(_marker_path(launcher))
     if state is None:
-        return True
-    return state not in _FALSY
+        return False
+    return state in _TRUTHY
 
 
 def enable(shim: Path) -> str:

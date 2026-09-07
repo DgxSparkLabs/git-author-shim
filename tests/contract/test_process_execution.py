@@ -34,6 +34,7 @@ def shim_env(**overrides: str | None) -> dict[str, str]:
     env = dict(os.environ)
     existing = env.get("PYTHONPATH")
     env["PYTHONPATH"] = str(_SRC) + (os.pathsep + existing if existing else "")
+    env["GIT_SHIM_SHADOW"] = "1"
     for name, value in overrides.items():
         if value is None:
             env.pop(name, None)

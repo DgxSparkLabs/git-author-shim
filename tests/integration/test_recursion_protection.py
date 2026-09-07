@@ -17,6 +17,7 @@ def _shim_env(real_git: str, shim_bin: Path, **overrides: str) -> dict[str, str]
     existing = env.get("PYTHONPATH")
     env["PYTHONPATH"] = str(_SRC) + (os.pathsep + existing if existing else "")
     env["PATH"] = str(shim_bin) + os.pathsep + env.get("PATH", "")
+    env["GIT_SHIM_SHADOW"] = "1"
     env["GIT_SHIM_REAL_PATH"] = real_git
     env["GIT_SHIM_TEST_PATH"] = str(shim_bin).replace("\\", "/")
     env["GIT_SHIM_MODE"] = "agent"

@@ -37,7 +37,9 @@ def test_enable_disable_round_trip(tmp_path: Path) -> None:
     shim = _dummy_install(tmp_path)
     target = tmp_path / git_launcher_name()
 
-    assert is_shadow_enabled(str(shim)) is True
+    assert is_shadow_enabled(str(shim)) is False
+    assert "disabled" in status_text(shim)
+
     enabled = enable(shim)
     assert "enabled git shadow" in enabled
     assert target.exists()
