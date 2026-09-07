@@ -34,35 +34,41 @@ On Windows the trampoline is a PE `git.exe` that `CreateProcessW` can execute. A
 
 ## Two ways to use it
 
-### Option 1: Transparent Git shadowing (default)
+On a fresh install, `git` defaults to safe passthrough (coexistence mode), leaving system Git behavior untouched.
 
-The installed `git` executable **is** the shim. Any coding agent that calls `git` (including `CreateProcessW` / `spawn` without a shell) goes through it automatically.
+### Option 1: Transparent Git shadowing (opt-in)
 
-Operator commits in unconfigured repositories pass through with zero mutation of personal Git or SSH configuration. Agent writes against a matching identity receive bot attribution and bot credentials. Agent writes with no identity, missing credentials, or an ambiguous match are refused rather than falling back to the operator.
+To have AI coding agents automatically use the shim when invoking `git`, opt in with:
 
 ```bash
-git-shim shadow enable    # default after install; re-assert full shim
+git-shim shadow enable
 git-shim shadow status
 ```
 
+This activates the shim on the installed `git` trampoline. Any coding agent that calls `git` (including `CreateProcessW` / `spawn` without a shell) then goes through it automatically.
+
+Operator commits in unconfigured repositories pass through with zero mutation of personal Git or SSH configuration. Agent writes against a matching identity receive bot attribution and bot credentials. Agent writes with no identity, missing credentials, or an ambiguous match are refused rather than falling back to the operator.
+
 Launch the agent from a shell whose `PATH` lists the uv tool bin directory before system Git.
 
-### Option 2: Passthrough / standalone `git-shim`
+### Option 2: Standalone `git-shim` / Coexistence (default)
 
-Leave the `git` trampoline on `PATH` but make it a no-op wrapper around real Git:
-
-```bash
-git-shim shadow disable
-```
-
-`git` then passes through to system Git with no identity or credential injection. Invoke the shim by name when you want bot attribution:
+On fresh install, `git` passes through to system Git without intercepting operator work. You can invoke the shim explicitly by name:
 
 ```bash
 git-shim commit -m "feat: bot commit"
 git-shim push origin feature-branch
 ```
 
-Point AI coding agents or shell aliases at `git-shim` as the Git binary when you want bot attribution without intercepting every `git` on the machine. `GIT_SHIM_SHADOW=0` forces passthrough for a single process without changing the marker.
+Or configure AI coding agents / shell aliases to use `git-shim` as the Git binary.
+
+If shadowing was previously enabled, return to passthrough at any time with:
+
+```bash
+git-shim shadow disable
+```
+
+`GIT_SHIM_SHADOW=0` forces passthrough for a single process without changing the marker.
 
 ## Configuration
 
