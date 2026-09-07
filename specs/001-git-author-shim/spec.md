@@ -18,7 +18,7 @@
 
 These follow from the prior-art survey in research/prior-art.md and are not yet operator-ratified. Downstream planning MUST treat them as proposals, not decisions, until confirmed.
 
-- Proposed: For a local write that names no remote (e.g. `git commit`), identity is matched at the repository level — against the union of the repository's configured remote URLs plus an optional repo-path matcher — never from a per-operation remote (mirrors git `hasconfig`/`gitdir`).
+- Proposed: For a local write that names no remote (e.g. `git commit`), identity is matched at the repository level against the primary remote (the upstream tracked remote of the current branch, or `origin`, or the single configured remote). If multiple configured remotes resolve to conflicting bot identities without a primary remote, the shim fails closed and refuses the write.
 - Proposed: SSH/HTTPS remote-form normalization and most-specific-match precedence are deliberate shim divergences from native git, which matches remote URLs literally and resolves last-include-wins.
 - Proposed: Repository-local configuration that selects identity or credentials MUST be trusted via a content-hash allow step before it is honored (the direnv/mise lesson); secrets are never read from repo-local files.
 
@@ -473,10 +473,10 @@ flowchart TD
 
 **Identity resolution and matching**
 
-- **FR-025**: The shim MUST support multiple bot identities and MUST select among them at the repository level, matching the repository against operator-defined patterns over host, organization or owner, and repository. Matching MUST consider the union of the repository's configured remote URLs and MAY also consider the repository path, so identity resolves even for commands that name no remote (for example `git commit`).
+- **FR-025**: The shim MUST support multiple bot identities and MUST select among them at the repository level. For local operations that name no remote (for example `git commit`), the shim MUST match against the primary remote (the upstream tracked remote of the current branch, or `origin`, or the single configured remote) and MAY consider the repository path. If multiple configured remotes resolve to conflicting bot identities without a primary remote, the shim MUST fail closed and refuse the write with an actionable message.
 - **FR-026**: The shim MUST treat equivalent SSH and HTTPS remote forms — for example `git@host:org/repo` and `https://host/org/repo.git`, with or without a trailing `.git` — as the same canonical `host/org/repo` for matching. This canonicalization is a shim behavior and a deliberate divergence from native git, which matches remote URL strings literally.
 - **FR-027**: The shim MUST support per-repository configuration that overrides and extends the global configuration.
-- **FR-028**: When more than one identity matches, the shim MUST resolve deterministically: per-repository configuration takes precedence over global, and among patterns the most specific match wins. Most-specific precedence is a shim rule and a deliberate divergence from native git, which resolves overlapping includes last-one-wins.
+- **FR-028**: When matching patterns for a remote, the shim MUST resolve deterministically: per-repository configuration takes precedence over global, and among patterns the most specific match wins. If two or more patterns tie in specificity, or if multiple remotes resolve to conflicting identities, the shim MUST fail closed and refuse write operations.
 - **FR-029**: Each identity MUST carry its own host-scoped credentials (an SSH key and/or an HTTPS token source), and the shim MUST offer those credentials only for that identity's matched host.
 - **FR-030**: Repository-local configuration that influences identity or credential selection MUST NOT be honored until the operator trusts it via a content-hash allow step, and the shim MUST NOT read secret values from repository-local files.
 
@@ -505,7 +505,7 @@ flowchart TD
 
 ## Assumptions
 
-- Multiple bot identities are supported, selected at the repository level by matching operator-defined host/organization/repository patterns against the union of the repository's configured remotes (and optionally its path), with per-repository configuration layered over global. SSH/HTTPS normalization and most-specific precedence are shim behaviors, not native git behavior.
+- Multiple bot identities are supported, selected at the repository level by matching operator-defined host/organization/repository patterns against the primary remote (tracked upstream or origin), with per-repository configuration layered over global. Conflicting multi-remote resolutions without a primary remote fail closed. SSH/HTTPS normalization and most-specific precedence are shim behaviors, not native git behavior.
 - Agents author the changes they originate, and the shim records the bot as author for those. When the agent carries an existing commit, the shim preserves the original author and records the bot only as committer, matching git's author-versus-committer split.
 - Commit and tag signing (GPG or SSH signing) is out of scope for this version.
 - The operator installs the shim ahead of the real git in the agent's execution environment and creates the bot account, key, and token out of band, following the referenced agent-identity approach.
