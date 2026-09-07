@@ -149,7 +149,7 @@ def _token_source_arguments(credential: HTTPSCredential) -> tuple[str, str]:
     raise CredentialError("HTTPS credential must configure exactly one token source")
 
 
-def build_https_flags(
+def build_https_credential_flags(
     identity: BotIdentity | HTTPSCredential,
     host: str,
 ) -> list[str]:
@@ -181,16 +181,6 @@ def build_https_flags(
     helper = "!" + " ".join(_shell_quote(part) for part in helper_parts)
     scoped_key = f"credential.https://{host}.helper"
     return ["-c", f"{scoped_key}=", "-c", f"{scoped_key}={helper}"]
-
-
-def build_https_credential_flags(
-    identity: BotIdentity | HTTPSCredential,
-    host: str,
-) -> list[str]:
-    """Build HTTPS credential flags using the explicit public API spelling."""
-
-    return build_https_flags(identity, host)
-
 
 def _parse_helper_arguments(argv: Sequence[str]) -> tuple[str, str, HTTPSCredential, str]:
     if not argv or argv[0] != "--credential-helper":

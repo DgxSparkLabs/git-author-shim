@@ -11,7 +11,6 @@ from uv_shims.git import credential_injector
 from uv_shims.git.credential_injector import (
     CredentialError,
     build_https_credential_flags,
-    build_https_flags,
     resolve_token,
 )
 from uv_shims.git.data_models import BotIdentity, HTTPSCredential
@@ -47,7 +46,7 @@ def test_https_flags_reset_and_install_only_the_matched_host_helper(
 def test_https_flags_include_username_without_exposing_token() -> None:
     identity = _identity(HTTPSCredential(token_env_var="PRIVATE_TOKEN", username="oauth2"))
 
-    flags = build_https_flags(identity, "gitlab.com")
+    flags = build_https_credential_flags(identity, "gitlab.com")
 
     helper = flags[3]
     assert "oauth2" in helper

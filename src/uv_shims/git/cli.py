@@ -663,10 +663,13 @@ def _resolve_agent(argv, env, config, config_path, marker, is_write) -> Resoluti
                     identity,
                 )
         elif host:
-            from uv_shims.git.credential_injector import CredentialError, build_https_flags
+            from uv_shims.git.credential_injector import (
+                CredentialError,
+                build_https_credential_flags,
+            )
 
             try:
-                git_options.extend(build_https_flags(identity, host))
+                git_options.extend(build_https_credential_flags(identity, host))
             except CredentialError as error:
                 return refuse(str(error), identity)
             credential_source = _https_source(identity.https)
