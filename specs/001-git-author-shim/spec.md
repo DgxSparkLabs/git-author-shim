@@ -499,7 +499,7 @@ flowchart TD
 - **SC-006**: The bot's key and token are presented only to the configured host, with 0 presentations of bot credentials to any other host.
 - **SC-007**: The operator can obtain a complete, secret-redacted preview of how a commit and push will resolve without any git action being performed.
 - **SC-008**: Correct behavior for stories 1 through 4 is reproducible on Windows, macOS, and Linux.
-- **SC-009**: Given several configured identities, the shim selects the correct identity for a repository in 100% of cases according to per-repository-over-global precedence and most-specific-match, whether the remote is expressed in SSH or HTTPS form.
+- **SC-009**: Given several configured identities, the shim selects the correct identity for a repository in 100% of cases according to per-repository-over-global precedence, primary-remote prioritization, and most-specific-match, failing closed on unresolvable multi-remote conflicts, whether the remote is expressed in SSH or HTTPS form.
 - **SC-010**: Repository-local configuration that selects identity or credentials is honored only after an explicit content-hash trust step; in 0% of cases does an untrusted repository-local file change the resolved identity or credential.
 - **SC-011**: When the agent carries an existing commit (cherry-pick, rebase, or an amend of a human-authored commit), 100% of the resulting commits preserve the original author and record the bot as committer.
 

@@ -42,12 +42,13 @@ The `git` shim augments the execution context of `git` commands invoked by auton
     ```
     This probe runs only for commit-classifying subcommands; read-only operations skip probing entirely.
 
-### Decision 4: Remote URL Normalization & Repository Matcher
-* **Decision**: Parse all configured remote URLs (`remote.*.url` and `remote.*.pushurl`) and normalize them into a canonical tuple `(host, owner_or_org, repo)`.
+### Decision 4: Remote URL Normalization & Primary Remote Matcher
+* **Decision**: Normalize configured remote URLs into canonical tuples `(host, owner_or_org, repo)`:
   * Normalizes SSH forms (`git@github.com:org/repo.git`, `ssh://git@github.com:22/org/repo.git`) and HTTPS forms (`https://github.com/org/repo.git`, `https://token@github.com/org/repo`).
   * Matches against glob patterns (`host/org/repo`, `host/org/*`, `host/*`).
-  * Most specific pattern match wins. Exact specificity ties result in an immediate refusal to execute write actions (US10).
-* **Rationale**: Eliminates the need for users to write duplicate configuration blocks for SSH and HTTPS remotes.
+  * **Primary Remote Policy**: For local writes (e.g. `git commit`), matches against the primary remote (the current branch's tracked upstream remote, or `origin`, or the single configured remote). If multiple configured remotes resolve to conflicting bot identities without a primary remote, the shim fails closed and refuses the write.
+  * **Precedence**: Per-repository configuration takes precedence over global, and among matching patterns for the resolved remote, the most specific match wins. Specificity ties fail closed (US10).
+* **Rationale**: Eliminates duplicate configuration blocks for SSH/HTTPS and prevents multi-remote configuration hijacking from misattributing local commits.
 
 ### Decision 5: SSH Credential Injection & Destination Host Validation
 * **Decision**: Inject `GIT_SSH_COMMAND` targeting an isolated SSH invocation:
