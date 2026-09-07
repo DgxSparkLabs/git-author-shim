@@ -182,6 +182,7 @@ def build_https_credential_flags(
     scoped_key = f"credential.https://{host}.helper"
     return ["-c", f"{scoped_key}=", "-c", f"{scoped_key}={helper}"]
 
+
 def _parse_helper_arguments(argv: Sequence[str]) -> tuple[str, str, HTTPSCredential, str]:
     if not argv or argv[0] != "--credential-helper":
         raise CredentialError("credential helper mode was not requested")
