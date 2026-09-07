@@ -7,13 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from uv_shims.git import credential_injector
-from uv_shims.git.credential_injector import (
+from git_author_shim import credential_injector
+from git_author_shim.credential_injector import (
     CredentialError,
     build_https_credential_flags,
     resolve_token,
 )
-from uv_shims.git.data_models import BotIdentity, HTTPSCredential
+from git_author_shim.data_models import BotIdentity, HTTPSCredential
 
 
 def _identity(credential: HTTPSCredential) -> BotIdentity:

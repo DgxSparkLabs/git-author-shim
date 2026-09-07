@@ -54,23 +54,15 @@ class TrustError(ValueError):
 
 
 def default_registry_path(env: Mapping[str, str] | None = None) -> Path:
-    """Return the platform-appropriate trust registry path.
+    """Return the operator-owned trust registry path.
 
-    Mirrors :func:`uv_shims.git.config.default_config_path` but never follows
-    the ``UV_SHIM_GIT_CONFIG`` override: the registry is operator state, not
-    part of an overridable configuration file.
+    Lives next to the global configuration at ``~/.git-shim/trusted-hashes.json``.
+    Unlike :func:`git_author_shim.config.default_config_path`, this never follows
+    a configuration-file override: the registry is operator state, not part of
+    an overridable configuration file.
     """
 
-    environment = os.environ if env is None else env
-    if os.name == "nt":
-        base = environment.get("APPDATA")
-        if base:
-            return Path(base) / "uv-shims" / REGISTRY_NAME
-    else:
-        base = environment.get("XDG_CONFIG_HOME")
-        if base:
-            return Path(base) / "uv-shims" / REGISTRY_NAME
-    return Path.home() / ".config" / "uv-shims" / REGISTRY_NAME
+    return Path.home() / ".git-shim" / REGISTRY_NAME
 
 
 def compute_file_hash(path: str | os.PathLike[str]) -> str:

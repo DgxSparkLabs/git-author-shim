@@ -9,7 +9,7 @@ invocation, so the delegation itself is a contract:
 * terminating signals reach the child instead of killing the wrapper first.
 
 Most assertions drive the real console-script code path via
-``python -m uv_shims.git`` so that exit codes, stream separation and signal
+``python -m git_author_shim`` so that exit codes, stream separation and signal
 delivery are observed at the operating-system level rather than mocked.
 """
 
@@ -50,7 +50,7 @@ def run_shim(
 ) -> subprocess.CompletedProcess[str]:
     """Run the ``git`` shim entry point in a real child process."""
     return subprocess.run(  # noqa: S603
-        [sys.executable, "-m", "uv_shims.git", *args],
+        [sys.executable, "-m", "git_author_shim", *args],
         input=stdin,
         capture_output=True,
         text=True,
@@ -74,11 +74,29 @@ def test_child_exit_code_is_propagated_verbatim(fake_git, code):
 
 
 def test_main_returns_the_child_exit_code(fake_git):
-    from uv_shims.git.__main__ import main
+    from git_author_shim.__main__ import main
 
     fake_git.set_exit_code(37)
 
     assert main(["status"]) == 37
+
+
+def test_git_shim_cli_forwards_status_to_run_git(fake_git):
+    from git_author_shim.cli import main
+
+    fake_git.set_exit_code(0)
+
+    assert main(["status"]) == 0
+    assert fake_git.last_call.argv == ["status"]
+
+
+def test_git_shim_cli_forwards_commit_and_propagates_exit_code(fake_git):
+    from git_author_shim.cli import main
+
+    fake_git.set_exit_code(17)
+
+    assert main(["commit", "-m", "test"]) == 17
+    assert fake_git.last_call.argv == ["commit", "-m", "test"]
 
 
 def test_missing_real_git_fails_with_an_actionable_message(tmp_path):
@@ -171,7 +189,7 @@ class _RecordingProcess:
 
 
 def test_terminating_signals_are_taken_over_and_restored():
-    from uv_shims.git import cli
+    from git_author_shim import cli
 
     forwarded = cli.forwardable_signals()
     assert signal.SIGINT in forwarded
@@ -214,7 +232,7 @@ def test_sigterm_reaches_the_child_git_process(tmp_path):
     trapping_git.chmod(0o755)
 
     process = subprocess.Popen(  # noqa: S603
-        [sys.executable, "-m", "uv_shims.git", "commit"],
+        [sys.executable, "-m", "git_author_shim", "commit"],
         env=shim_env(UV_SHIM_GIT_REAL_PATH=str(trapping_git)),
         cwd=str(tmp_path),
     )

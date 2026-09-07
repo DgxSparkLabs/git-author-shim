@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from uv_shims.git.credential_injector import build_ssh_command
+from git_author_shim.credential_injector import build_ssh_command
 
 
 def test_build_ssh_command_isolates_the_requested_identity() -> None:

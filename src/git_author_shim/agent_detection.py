@@ -2,7 +2,7 @@
 
 import os
 
-from uv_shims.git.data_models import IdentityMode, ShimConfig
+from git_author_shim.data_models import IdentityMode, ShimConfig
 
 _VENDOR_MARKERS = (
     "AGENT_ID",

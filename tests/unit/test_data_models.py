@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from uv_shims.git.data_models import (
+from git_author_shim.data_models import (
     BotIdentity,
     CommitClass,
     HTTPSCredential,

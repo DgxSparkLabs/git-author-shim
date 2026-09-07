@@ -245,7 +245,7 @@ def _main(argv: Sequence[str] | None = None) -> int:
     try:
         return _run_credential_helper(sys.argv[1:] if argv is None else argv)
     except CredentialError as error:
-        sys.stderr.write(f"uv-shims credential helper: {error}\n")
+        sys.stderr.write(f"git-author-shim credential helper: {error}\n")
         return 1
 
 

@@ -27,7 +27,7 @@ def _run_shim(
     repo, *args: str, env: dict[str, str] | None = None
 ) -> subprocess.CompletedProcess[str]:
     return subprocess.run(  # noqa: S603
-        [sys.executable, "-m", "uv_shims.git", *args],
+        [sys.executable, "-m", "git_author_shim", *args],
         cwd=repo.path,
         env=_shim_env(repo.git_binary) if env is None else env,
         capture_output=True,

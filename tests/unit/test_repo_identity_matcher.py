@@ -15,7 +15,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from uv_shims.git.repo_identity_matcher import (
+from git_author_shim.repo_identity_matcher import (
     CanonicalRepo,
     canonicalize_url,
     match_identity,

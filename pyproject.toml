@@ -3,20 +3,23 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "uv-shims"
+name = "git-author-shim"
 version = "0.1.0"
 description = "Git author identity and credential shim for AI coding agents"
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
 authors = [
-    { name = "uv-shims maintainers" }
+    { name = "DgxSparkLabs" }
 ]
 dependencies = []
 
+[project.urls]
+Repository = "https://github.com/DgxSparkLabs/git-author-shim"
+
 [project.scripts]
-git = "uv_shims.git.__main__:main"
-git-shim = "uv_shims.git.cli:main"
+git = "git_author_shim.__main__:main"
+git-shim = "git_author_shim.cli:main"
 
 [dependency-groups]
 dev = [
@@ -26,7 +29,7 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/uv_shims"]
+packages = ["src/git_author_shim"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

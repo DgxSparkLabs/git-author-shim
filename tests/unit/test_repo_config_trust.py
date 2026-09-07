@@ -1,7 +1,7 @@
 """Unit tests for the SHA-256 content-hash trust registry (T038, US8).
 
-Covers ``src/uv_shims/git/repo_config_trust.py`` and the trust-gated
-repository-local config loading integrated into ``src/uv_shims/git/config.py``
+Covers ``src/git_author_shim/git/repo_config_trust.py`` and the trust-gated
+repository-local config loading integrated into ``src/git_author_shim/git/config.py``
 (FR-030): a repo-local ``.git-shim.toml`` is ignored until its content hash is
 allowlisted, tampering revokes the grant, and secret values are never read
 from repo-local files.
@@ -15,8 +15,8 @@ from pathlib import Path
 
 import pytest
 
-from uv_shims.git.config import ConfigError, LocalConfig, load_local_config
-from uv_shims.git.repo_config_trust import (
+from git_author_shim.config import ConfigError, LocalConfig, load_local_config
+from git_author_shim.repo_config_trust import (
     TrustError,
     compute_file_hash,
     default_registry_path,

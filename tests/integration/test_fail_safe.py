@@ -49,7 +49,7 @@ def run_shim(
 ) -> subprocess.CompletedProcess[str]:
     """Run the ``git`` shim entry point in a real child process."""
     return subprocess.run(  # noqa: S603
-        [sys.executable, "-m", "uv_shims.git", *args],
+        [sys.executable, "-m", "git_author_shim", *args],
         input="",
         capture_output=True,
         text=True,

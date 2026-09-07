@@ -2,7 +2,7 @@
 
 import pytest
 
-from uv_shims.git.commit_authorship_classifier import is_write_command
+from git_author_shim.commit_authorship_classifier import is_write_command
 
 
 @pytest.mark.parametrize("command", ["status", "log", "diff", "fetch", "show", "branch"])

@@ -1,4 +1,4 @@
-"""Shared pytest harness for ``uv-shims``.
+"""Shared pytest harness for ``git-author-shim``.
 
 Fixtures exported here:
 
@@ -35,7 +35,7 @@ from pathlib import Path
 
 import pytest
 
-# Allow ``import uv_shims`` without an installed/editable wheel. Single bootstrap for
+# Allow ``import git_author_shim`` without an installed/editable wheel. Single bootstrap for
 # the whole suite; do not duplicate this in individual test modules.
 _SRC = Path(__file__).resolve().parent.parent / "src"
 if _SRC.is_dir() and str(_SRC) not in sys.path:
@@ -134,16 +134,15 @@ class IsolatedEnv:
 
     @property
     def shim_config_dir(self) -> Path:
-        """Directory holding ``git.toml``, platform-appropriate."""
-        base = self.appdata if sys.platform == "win32" else self.xdg_config_home
-        return base / "uv-shims"
+        """Directory holding ``config.toml`` (``~/.git-shim``)."""
+        return self.home / ".git-shim"
 
     @property
     def config_path(self) -> Path:
-        """Default global config path (``.../uv-shims/git.toml``)."""
-        return self.shim_config_dir / "git.toml"
+        """Default global config path (``~/.git-shim/config.toml``)."""
+        return self.shim_config_dir / "config.toml"
 
-    def write_config(self, content: str, *, name: str = "git.toml") -> Path:
+    def write_config(self, content: str, *, name: str = "config.toml") -> Path:
         """Write a global shim config file and return its path."""
         target = self.shim_config_dir / name
         target.parent.mkdir(parents=True, exist_ok=True)

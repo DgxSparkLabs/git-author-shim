@@ -32,7 +32,7 @@ def _install_git_shim(bin_dir: Path, entry_log: Path) -> None:
     shell_shim.write_text(
         "#!/bin/sh\n"
         f"printf '%s\\n' \"${{{_SENTINEL}:-caller}}\" >> '{entry}'\n"
-        f"exec '{python}' -m uv_shims.git \"$@\"\n",
+        f"exec '{python}' -m git_author_shim \"$@\"\n",
         encoding="utf-8",
     )
     shell_shim.chmod(0o755)
@@ -41,7 +41,7 @@ def _install_git_shim(bin_dir: Path, entry_log: Path) -> None:
             "@echo off\n"
             f'if defined {_SENTINEL} (>>"{entry_log}" echo %{_SENTINEL}%) '
             f'else (>>"{entry_log}" echo caller)\n'
-            f'"{sys.executable}" -m uv_shims.git %*\n',
+            f'"{sys.executable}" -m git_author_shim %*\n',
             encoding="utf-8",
         )
 

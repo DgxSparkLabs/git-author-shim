@@ -2,7 +2,7 @@
 
 import pytest
 
-from uv_shims.git.cli import run_git
+from git_author_shim.cli import run_git
 
 _CONFIG = """[[identities]]
 id = "acme"

@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from uv_shims.git.config import ConfigError, load_config
-from uv_shims.git.data_models import IdentityMode
+from git_author_shim.config import ConfigError, default_config_path, load_config
+from git_author_shim.data_models import IdentityMode
 
 
 def write_toml(tmp_path: Path, content: str) -> Path:
@@ -114,6 +114,39 @@ def test_missing_default_config_returns_an_empty_safe_configuration(tmp_path: Pa
 
     assert config.settings.default_mode is IdentityMode.AUTO
     assert config.identities == ()
+
+
+def test_default_config_path_is_home_git_shim_config_toml(isolated_env) -> None:
+    assert default_config_path() == isolated_env.home / ".git-shim" / "config.toml"
+
+
+def test_default_config_path_prefers_git_shim_config_over_legacy(isolated_env, tmp_path) -> None:
+    override = tmp_path / "custom.toml"
+    isolated_env.setenv("GIT_SHIM_CONFIG", str(override))
+    isolated_env.setenv("UV_SHIM_GIT_CONFIG", str(tmp_path / "legacy.toml"))
+    assert default_config_path() == override
+
+
+def test_default_config_path_falls_back_to_uv_shim_git_config(isolated_env, tmp_path) -> None:
+    legacy = tmp_path / "legacy.toml"
+    isolated_env.setenv("UV_SHIM_GIT_CONFIG", str(legacy))
+    assert default_config_path() == legacy
+
+
+def test_default_config_path_uses_git_toml_when_config_toml_is_absent(isolated_env) -> None:
+    legacy = isolated_env.home / ".git-shim" / "git.toml"
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    legacy.write_text("[settings]\n", encoding="utf-8")
+    assert default_config_path() == legacy
+
+
+def test_default_config_path_prefers_config_toml_over_git_toml(isolated_env) -> None:
+    directory = isolated_env.home / ".git-shim"
+    directory.mkdir(parents=True, exist_ok=True)
+    config = directory / "config.toml"
+    config.write_text("[settings]\n", encoding="utf-8")
+    (directory / "git.toml").write_text("[settings]\n", encoding="utf-8")
+    assert default_config_path() == config
 
 
 @pytest.mark.parametrize("missing_field", ["id", "name", "email", "match_patterns"])

@@ -4,7 +4,7 @@ import os
 import statistics
 import time
 
-from uv_shims.git.cli import resolve
+from git_author_shim.cli import resolve
 
 
 def test_resolution_cpu_overhead_stays_below_five_milliseconds(

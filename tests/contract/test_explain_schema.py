@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from uv_shims.git.cli import main, run_git
+from git_author_shim.cli import main, run_git
 
 _CONFIG = """[[identities]]
 id = "acme"

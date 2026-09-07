@@ -5,7 +5,7 @@ import sys
 
 import pytest
 
-from uv_shims.git import real_git_discovery as discovery
+from git_author_shim import real_git_discovery as discovery
 
 
 @pytest.fixture

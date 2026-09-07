@@ -2,8 +2,8 @@
 
 from itertools import permutations
 
-from uv_shims.git.data_models import BotIdentity
-from uv_shims.git.repo_identity_matcher import match_identity
+from git_author_shim.data_models import BotIdentity
+from git_author_shim.repo_identity_matcher import match_identity
 
 
 def identity(name, pattern):

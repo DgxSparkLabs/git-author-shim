@@ -36,25 +36,28 @@ class LocalConfig:
 
 
 def default_config_path(env: Mapping[str, str] | None = None) -> Path:
-    """Return the platform-appropriate global configuration path."""
+    """Return the operator-owned global configuration path.
+
+    Precedence: ``GIT_SHIM_CONFIG``, then the legacy ``UV_SHIM_GIT_CONFIG``,
+    then ``~/.git-shim/config.toml``. If ``config.toml`` is absent but
+    ``~/.git-shim/git.toml`` exists, that legacy filename is used instead.
+    """
 
     environment = os.environ if env is None else env
-    override = environment.get("UV_SHIM_GIT_CONFIG")
+    override = environment.get("GIT_SHIM_CONFIG") or environment.get("UV_SHIM_GIT_CONFIG")
     if override:
         return Path(override)
-    if os.name == "nt":
-        base = environment.get("APPDATA")
-        if base:
-            return Path(base) / "uv-shims" / "git.toml"
-    else:
-        base = environment.get("XDG_CONFIG_HOME")
-        if base:
-            return Path(base) / "uv-shims" / "git.toml"
-    return Path.home() / ".config" / "uv-shims" / "git.toml"
+    config_dir = Path.home() / ".git-shim"
+    config_path = config_dir / "config.toml"
+    if not config_path.exists():
+        legacy = config_dir / "git.toml"
+        if legacy.exists():
+            return legacy
+    return config_path
 
 
 def load_config(path: str | os.PathLike[str] | None = None) -> ShimConfig:
-    """Parse and validate ``git.toml`` into immutable data models.
+    """Parse and validate the global configuration into immutable data models.
 
     ``tomllib`` is imported only when a configuration file is actually read, so
     startup paths that bypass agent configuration do not pay its import cost.

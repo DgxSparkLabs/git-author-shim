@@ -24,6 +24,9 @@ EXPLAIN_ENV = "UV_SHIM_GIT_EXPLAIN"
 
 _TRUTHY = frozenset({"1", "true", "yes", "on"})
 
+_MANAGEMENT_COMMANDS = frozenset({"explain", "trust", "untrust", "list-identities"})
+_MANAGEMENT_FLAGS = frozenset({"-h", "--help", "-v", "--version"})
+
 _AUTHOR_ENV = ("GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_AUTHOR_DATE")
 
 #: Git global options selecting which repository is operated on.
@@ -410,10 +413,10 @@ def resolve(argv: list[str], env=None) -> Resolution:
     """Decide identity, credentials and refusals for one Git invocation."""
     environ = os.environ if env is None else env
 
-    from uv_shims.git.agent_detection import resolve_identity_mode
-    from uv_shims.git.commit_authorship_classifier import is_write_command
-    from uv_shims.git.config import ConfigError, default_config_path, load_config
-    from uv_shims.git.data_models import IdentityMode, InvocationPlan
+    from git_author_shim.agent_detection import resolve_identity_mode
+    from git_author_shim.commit_authorship_classifier import is_write_command
+    from git_author_shim.config import ConfigError, default_config_path, load_config
+    from git_author_shim.data_models import IdentityMode, InvocationPlan
 
     config_path = default_config_path(environ)
     try:
@@ -468,8 +471,8 @@ def _select_local_identity(config, worktree_root: str | None):
     if worktree_root is None:
         return None, None, None
 
-    from uv_shims.git.config import ConfigError, load_local_config
-    from uv_shims.git.repo_config_trust import LOCAL_CONFIG_NAME
+    from git_author_shim.config import ConfigError, load_local_config
+    from git_author_shim.repo_config_trust import LOCAL_CONFIG_NAME
 
     path = os.path.join(worktree_root, LOCAL_CONFIG_NAME)
     if not os.path.isfile(path):
@@ -535,8 +538,8 @@ def _sequencer_author(argv: list[str], env) -> tuple[str, str, str] | None:
 
 
 def _resolve_agent(argv, env, config, config_path, marker, is_write) -> Resolution:
-    from uv_shims.git.data_models import CommitClass, IdentityMode, InvocationPlan
-    from uv_shims.git.repo_identity_matcher import canonicalize_url, match_identity
+    from git_author_shim.data_models import CommitClass, IdentityMode, InvocationPlan
+    from git_author_shim.repo_identity_matcher import canonicalize_url, match_identity
 
     git_dir, worktree_root = _locate_repository(argv, env)
     remotes: dict[str, str] = {}
@@ -618,7 +621,7 @@ def _resolve_agent(argv, env, config, config_path, marker, is_write) -> Resoluti
     committer = None
 
     if is_write:
-        from uv_shims.git.commit_authorship_classifier import classify_commit
+        from git_author_shim.commit_authorship_classifier import classify_commit
 
         commit_class = classify_commit(argv)
         if commit_class is CommitClass.CARRYING:
@@ -648,7 +651,7 @@ def _resolve_agent(argv, env, config, config_path, marker, is_write) -> Resoluti
                     identity,
                 )
         else:
-            from uv_shims.git.credential_injector import build_ssh_command
+            from git_author_shim.credential_injector import build_ssh_command
 
             key_file = os.path.expanduser(os.fspath(identity.ssh.key_file))
             env_updates["GIT_SSH_COMMAND"] = build_ssh_command(
@@ -663,7 +666,7 @@ def _resolve_agent(argv, env, config, config_path, marker, is_write) -> Resoluti
                     identity,
                 )
         elif host:
-            from uv_shims.git.credential_injector import (
+            from git_author_shim.credential_injector import (
                 CredentialError,
                 build_https_credential_flags,
             )
@@ -699,7 +702,7 @@ def _resolve_agent(argv, env, config, config_path, marker, is_write) -> Resoluti
 
 
 def _real_git(env) -> str:
-    from uv_shims.git.real_git_discovery import find_real_git
+    from git_author_shim.real_git_discovery import find_real_git
 
     try:
         return find_real_git(env=env)
@@ -716,7 +719,7 @@ def _preflight_credentials(resolution: Resolution, argv: list[str]) -> None:
     if identity is None or identity.ssh is None:
         return
 
-    from uv_shims.git.credential_injector import CredentialError, validate_ssh_key
+    from git_author_shim.credential_injector import CredentialError, validate_ssh_key
 
     try:
         validate_ssh_key(identity.ssh.key_file)
@@ -740,7 +743,7 @@ def _spawn(
     """
     import subprocess
 
-    from uv_shims.git.real_git_discovery import inject_continuation
+    from git_author_shim.real_git_discovery import inject_continuation
 
     child_env = inject_continuation(env)
     for name, value in (env_updates or {}).items():
@@ -770,12 +773,12 @@ def run_git(argv: list[str] | None = None, env=None) -> int:
     explain = environ.get(EXPLAIN_ENV, "").strip().lower() in _TRUTHY
 
     try:
-        from uv_shims.git.real_git_discovery import is_continuation
+        from git_author_shim.real_git_discovery import is_continuation
 
         if is_continuation(environ) and not explain:
             if environ.get(MODE_ENV) == "human":
                 return _spawn(_real_git(environ), arguments, environ)
-            from uv_shims.git.commit_authorship_classifier import is_write_command
+            from git_author_shim.commit_authorship_classifier import is_write_command
 
             if not is_write_command(arguments):
                 return _spawn(_real_git(environ), arguments, environ)
@@ -905,7 +908,7 @@ def _explain(git_args: list[str], as_json: bool) -> int:
 
 
 def _list_identities() -> int:
-    from uv_shims.git.config import ConfigError, default_config_path, load_config
+    from git_author_shim.config import ConfigError, default_config_path, load_config
 
     try:
         config = load_config(default_config_path(os.environ))
@@ -921,7 +924,7 @@ def _list_identities() -> int:
 
 
 def _set_trust(command: str, path: str | None) -> int:
-    from uv_shims.git.repo_config_trust import (
+    from git_author_shim.repo_config_trust import (
         LOCAL_CONFIG_NAME,
         TrustError,
         trust_config,
@@ -942,13 +945,44 @@ def _set_trust(command: str, path: str | None) -> int:
     return 0
 
 
+def _is_git_passthrough(arguments: list[str]) -> bool:
+    """True when ``git-shim <args>`` should run as a shimmed Git invocation.
+
+    Management commands (``explain``, ``trust``, ``untrust``, ``list-identities``)
+    and top-level help/version flags stay in the operator CLI. Anything else,
+    including ``git-shim commit`` / ``git-shim -C <dir> status``, is Git.
+    """
+    if not arguments:
+        return False
+    first = arguments[0]
+    return first not in _MANAGEMENT_FLAGS and first not in _MANAGEMENT_COMMANDS
+
+
 def main(argv: list[str] | None = None) -> int:
-    """``git-shim`` operator CLI: inspect plans and manage the trust registry."""
+    """``git-shim`` operator CLI, or the shimmed Git executable.
+
+    ``git-shim explain`` / ``trust`` / ``untrust`` / ``list-identities`` manage
+    the shim. Any other argv (``git-shim commit``, ``git-shim push``, ...) is
+    forwarded to :func:`run_git` so Option 2 coexistence matches the ``git``
+    console script.
+    """
+    arguments = sys.argv[1:] if argv is None else list(argv)
+    if _is_git_passthrough(arguments):
+        return run_git(arguments)
+
     import argparse
+
+    from git_author_shim import __version__
 
     parser = argparse.ArgumentParser(
         prog="git-shim",
         description="Inspect and manage the Git author identity shim.",
+    )
+    parser.add_argument(
+        "-v",
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
     )
     subcommands = parser.add_subparsers(dest="command", required=True)
 
@@ -974,7 +1008,7 @@ def main(argv: list[str] | None = None) -> int:
         command = subcommands.add_parser(name, help=help_text)
         command.add_argument("path", nargs="?", default=None, help="path to .git-shim.toml")
 
-    args = parser.parse_args(sys.argv[1:] if argv is None else list(argv))
+    args = parser.parse_args(arguments)
     try:
         if args.command == "explain":
             return _explain(args.git_args, args.as_json)

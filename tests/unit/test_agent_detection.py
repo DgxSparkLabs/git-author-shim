@@ -2,8 +2,8 @@
 
 import pytest
 
-from uv_shims.git.agent_detection import resolve_identity_mode
-from uv_shims.git.data_models import GlobalSettings, IdentityMode, ShimConfig
+from git_author_shim.agent_detection import resolve_identity_mode
+from git_author_shim.data_models import GlobalSettings, IdentityMode, ShimConfig
 
 
 def configured(**settings):

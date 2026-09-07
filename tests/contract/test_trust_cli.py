@@ -1,6 +1,6 @@
 """Contract tests for the ``git-shim trust`` / ``git-shim untrust`` CLI (T040, US8).
 
-Exercises the console-script entry point ``uv_shims.git.cli:main`` exactly as
+Exercises the console-script entry point ``git_author_shim.cli:main`` exactly as
 an operator would: ``git-shim trust <file>`` records the file's SHA-256 in the
 operator registry, ``git-shim untrust <file>`` removes it, and repository-local
 configuration is ignored by command resolution until trusted (FR-030,
@@ -15,9 +15,9 @@ from pathlib import Path
 
 import pytest
 
-from uv_shims.git.cli import main
-from uv_shims.git.config import load_local_config
-from uv_shims.git.repo_config_trust import (
+from git_author_shim.cli import main
+from git_author_shim.config import load_local_config
+from git_author_shim.repo_config_trust import (
     default_registry_path,
     is_config_trusted,
 )

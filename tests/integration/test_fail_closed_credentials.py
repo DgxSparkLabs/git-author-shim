@@ -25,7 +25,7 @@ def _shim_env(real_git: str, **overrides: str) -> dict[str, str]:
 
 def _run_shim(repo, fake_git, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(  # noqa: S603
-        [sys.executable, "-m", "uv_shims.git", *args],
+        [sys.executable, "-m", "git_author_shim", *args],
         cwd=repo.path,
         env=_shim_env(str(fake_git.path)),
         capture_output=True,

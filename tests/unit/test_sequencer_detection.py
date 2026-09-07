@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from uv_shims.git.commit_authorship_classifier import classify_commit, probe_sequencer_state
-from uv_shims.git.data_models import CommitClass
+from git_author_shim.commit_authorship_classifier import classify_commit, probe_sequencer_state
+from git_author_shim.data_models import CommitClass
 
 STATE_NAMES = ("CHERRY_PICK_HEAD", "REBASE_HEAD", "rebase-merge", "rebase-apply", "MERGE_HEAD")
 
