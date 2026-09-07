@@ -284,7 +284,7 @@ It rewrites hosts.yml user: for that host and moves that user's token into the a
 **Do credential helpers apply to HTTPS only (not SSH auth)?**
 **Yes.** Confirmed by gitcredentials(7), GCM FAQ, and gh helper's protocol != https early-out. SSH uses ssh-agent / IdentityFile / IdentityAgent / 1Password, a separate plane.
 
-## Implications for a git shim (uv-shims)
+## Implications for a git shim (git-author-shim)
 
 - Treat **HTTPS credentials** and **SSH identities** as two planes; a shim that only wraps git credential helper protocol will never see SSH.
 - Same-host multi-account prior art is **URL userinfo plus optional useHttpPath**, plus gh's **process-wide active account**. Nobody ships nvm-style directory auto-switch for credentials.

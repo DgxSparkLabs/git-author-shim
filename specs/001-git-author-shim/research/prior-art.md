@@ -5,7 +5,7 @@
 ## Purpose and Method
 
 This document surveys how existing systems manage multiple git identities, credentials, and
-profiles, and how they switch between them, to ground the design of the uv-shims `git` shim.
+profiles, and how they switch between them, to ground the design of the git-author-shim `git` shim.
 A specific inspiration was the version-manager pattern (nvm, fnm, asdf, mise, direnv, uv,
 proto), which auto-detects and switches the active runtime per directory; we wanted to know
 whether that pattern is applied to git identity and credentials, and what to borrow.
@@ -163,7 +163,7 @@ are always pushed to the OS keychain, never committed. No verified tool uses
 None of these auto-detect from the working directory. Same-host multi-account is always
 URL-userinfo, path, a process-wide active account, or an SSH host alias.
 
-## Conclusions and Design Implications for uv-shims
+## Conclusions and Design Implications for git-author-shim
 
 1. **The shim is the right shape.** The exec-time PATH-shim model (asdf/mise) is the closest
    and cleanest analog for wrapping `git`, and it works for non-interactive agents where

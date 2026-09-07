@@ -2,9 +2,9 @@
 
 **Feature**: [spec.md](../spec.md) · **Plan**: [plan.md](../plan.md) · **Status**: Completed
 
-## 1. Global Configuration File: `git.toml`
+## 1. Global Configuration File: `config.toml`
 
-Default path: `~/.config/uv-shims/git.toml` (or `%APPDATA%\uv-shims\git.toml` on Windows).
+Default path: `~/.git-shim/config.toml` (or `%USERPROFILE%\.git-shim\config.toml` on Windows). Override with `GIT_SHIM_CONFIG`.
 
 ```toml
 [settings]

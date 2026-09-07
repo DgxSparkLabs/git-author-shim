@@ -193,7 +193,7 @@ Dot variants (`.mise.toml`) allowed. Plus `MISE_ENV` files (`mise.development.to
 
 ---
 
-## Comparison (for uv-shims git identity)
+## Comparison (for git-author-shim git identity)
 
 | Tool | Pin files | Walk | Merge | Trigger | Trust/allow |
 |---|---|---|---|---|---|

@@ -17,7 +17,7 @@ The `git` shim augments the execution context of `git` commands invoked by auton
   * **Resolution Target**: In-process CPU resolution overhead <5ms (measured via `time.perf_counter()`). Total wall-clock overhead target <25ms on Linux/macOS and <120ms on Windows CPython.
 * **Alternatives Considered**:
   * *Rust*: Excellent standalone binary and startup speed (<5ms), but higher initial development overhead and cross-compilation matrix.
-  * *Go*: Good single-binary distribution, but requires Go toolchain setup in Python-centric `uv-shims` project.
+  * *Go*: Good single-binary distribution, but requires Go toolchain setup in Python-centric `git-author-shim` project.
 
 ### Decision 2: Real Git Binary Discovery & Recursion Prevention
 * **Decision**: The shim discovers the underlying real Git binary by scanning `PATH` (using `PATHEXT` on Windows) while skipping its own executable path. On child process invocation, it sets an internal marker environment variable (`__GIT_SHIM_CONTINUATION=1`).
@@ -67,8 +67,8 @@ The `git` shim augments the execution context of `git` commands invoked by auton
 * **Cataloged Credential Precedence**: In Git, URL-scoped helpers (e.g. `[credential "https://github.com"]`) take precedence over generic `credential.helper`. To guarantee the bot token is supplied, the override MUST be scoped to the exact destination host (`credential.https://<matched-host>.helper=`). Generic global reset must NOT be used as it breaks fallback authentication on foreign/unconfigured hosts.
 * **Secret Redaction**: Secrets are strictly sourced from environment variables, files, or secret commands, never placed on command-line arguments or written to stored `.git/config`.
 ### Decision 7: Content-Hash Trust Gate for Repo-Local Config
-* **Decision**: Store trusted SHA-256 hashes of repository-local configuration files in the operator's global state (`~/.config/uv-shims/trusted-hashes.json`).
-* **Rationale**: Following the pattern of `direnv` and `mise`, untrusted cloned repositories cannot execute arbitrary credential commands or redirect identities without explicit operator approval (`uv-shims trust` or prompt).
+* **Decision**: Store trusted SHA-256 hashes of repository-local configuration files in the operator's global state (`~/.git-shim/trusted-hashes.json`).
+* **Rationale**: Following the pattern of `direnv` and `mise`, untrusted cloned repositories cannot execute arbitrary credential commands or redirect identities without explicit operator approval (`git-shim trust` or prompt).
 
 ---
 

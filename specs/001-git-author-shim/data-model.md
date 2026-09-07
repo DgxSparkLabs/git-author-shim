@@ -2,6 +2,8 @@
 
 **Feature**: [spec.md](./spec.md) · **Plan**: [plan.md](./plan.md) · **Status**: Completed
 
+**Package**: `src/git_author_shim/` · **Config**: `~/.git-shim/config.toml` (`GIT_SHIM_CONFIG` override; Windows `%USERPROFILE%\.git-shim\config.toml`) · **Trust registry**: `~/.git-shim/trusted-hashes.json`
+
 ## 1. Core Entities and Relationships
 
 ```mermaid
@@ -90,7 +92,7 @@ Represents an automated committer and its host-scoped credentials.
 
 ### 2.2 `IdentityMode` (Enum)
 Determines how the shim resolves the caller:
-* **`auto`** (default): Evaluates presence of vendor agent markers (`AGENT_ID`, `CLAUDE_CODE`, `CODEX_SANDBOX`, etc.). If present, activates `agent`; otherwise acts as `human`.
+* **`auto`** (default): Evaluates presence of vendor agent markers (`AGENT_ID`, `CLAUDE_CODE`, `CODEX_SANDBOX`, etc.). If present, activates `agent`; otherwise acts as `human`. Override with `GIT_SHIM_MODE`.
 * **`agent`**: Forces bot mode regardless of ambient markers.
 * **`human`**: Forces human operator passthrough; shim is completely inert.
 
@@ -115,7 +117,7 @@ The calculated runtime decision record produced before executing or explaining a
 
 ### 2.5 `TrustedRepoRegistry`
 Maintains operator trust grants for repository-local configuration files.
-* Storage: `~/.config/uv-shims/trusted-hashes.json` (or platform equivalent).
+* Storage: `~/.git-shim/trusted-hashes.json` (or `%USERPROFILE%\.git-shim\trusted-hashes.json` on Windows).
 * Key: Canonical absolute path to repository `.git-shim.toml`.
 * Value: SHA-256 hash of the trusted file content.
 * Invalidation rule: Any modification changing the SHA-256 immediately invalidates the trust grant.

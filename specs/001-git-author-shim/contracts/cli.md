@@ -6,8 +6,10 @@
 
 The package installs two console scripts: `git` (`git_author_shim.__main__:main`) and `git-shim` (`git_author_shim.cli:main`). `uv tool install` has no flag that selects a subset of `[project.scripts]`; it installs both. On Windows the `git` entry is a real `git.exe` trampoline that `CreateProcessW` can execute without a shell (a `.cmd` wrapper is skipped by `subprocess.run(["git", ...], shell=False)` and by agent spawners).
 
-- **Option 1 — Transparent shadowing (default):** the installed `git` trampoline runs the full shim. Coding agents that spawn `git` without a shell are intercepted.
-- **Option 2 — Passthrough / coexistence:** `git-shim shadow disable` writes a marker so `git` passes through to real Git with no identity injection. `git-shim` still runs the full shim. `git-shim shadow enable` restores interception. `GIT_SHIM_SHADOW=0` / `1` overrides the marker for one process.
+Primary install: `uv tool install git+https://github.com/DgxSparkLabs/git-author-shim.git` (or `uv tool install .` from a local checkout). On a fresh install, `git` defaults to safe passthrough (coexistence). `git-shim` always runs the full shim.
+
+- **Option 1 — Transparent shadowing (opt-in):** `git-shim shadow enable` writes a marker so the installed `git` trampoline runs the full shim. Coding agents that spawn `git` without a shell are intercepted. `git-shim shadow disable` returns the trampoline to passthrough. `git-shim shadow status` reports launcher path, trampoline mode, and which `git` wins on `PATH`.
+- **Option 2 — Standalone `git-shim` / coexistence (default):** `git` passes through to real Git with no identity injection. Invoke the shim explicitly as `git-shim`. `GIT_SHIM_SHADOW=0` / `1` overrides the marker for one process.
 
 When the process is invoked as `git` (the `argv[0]` stem is `git`), every argument is a Git invocation — management commands are not intercepted. `git-shim explain` / `trust` / `untrust` / `list-identities` / `shadow` remain on the `git-shim` executable.
 
@@ -24,7 +26,7 @@ When the process is invoked as `git` (the `argv[0]` stem is `git`), every argume
 | Variable | Values | Default | Purpose |
 | :--- | :--- | :--- | :--- |
 | `GIT_SHIM_MODE` | `auto`, `agent`, `human` | `auto` | Explicitly sets the identity mode (FR-007, FR-010). Overrides auto-detection. |
-| `GIT_SHIM_CONFIG` | `<filepath>` | `~/.git-shim/config.toml` | Path to the global shim configuration file. |
+| `GIT_SHIM_CONFIG` | `<filepath>` | `~/.git-shim/config.toml` (`%USERPROFILE%\.git-shim\config.toml` on Windows) | Path to the global shim configuration file. |
 | `GIT_SHIM_EXPLAIN` | `1`, `true` | Unset | When set, prints the resolved invocation plan (secrets redacted) and exits 0 without calling real Git (FR-021). |
 | `GIT_SHIM_REAL_PATH` | `<filepath>` | Auto-detected | Explicit path to the real Git binary to bypass auto-discovery. |
 | `GIT_SHIM_SHADOW` | `1`/`0`, `true`/`false`, `on`/`off` | Unset | Force the `git` trampoline into full shim (`1`) or passthrough (`0`), overriding the `.git-shim-shadow` marker. |
@@ -37,7 +39,7 @@ Under `GIT_SHIM_MODE=auto`, the presence of any of the following environment var
 * `CODEX_SANDBOX`
 * `CURSOR_AGENT`
 * `OPENAI_AGENT`
-* Operator-defined custom markers in `git.toml`.
+* Operator-defined custom markers in `config.toml`.
 
 ---
 
@@ -111,7 +113,7 @@ Write Permitted: YES
 ```
 
 #### `git-shim trust [path/to/.git-shim.toml]`
-Computes the SHA-256 hash of the specified repository-local configuration file and adds it to the operator's trusted registry (`~/.config/uv-shims/trusted-hashes.json`).
+Computes the SHA-256 hash of the specified repository-local configuration file and adds it to the operator's trusted registry (`~/.git-shim/trusted-hashes.json`, or `%USERPROFILE%\.git-shim\trusted-hashes.json` on Windows).
 
 #### `git-shim untrust [path/to/.git-shim.toml]`
 Removes the specified file from the trusted registry.

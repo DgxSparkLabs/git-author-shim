@@ -190,7 +190,7 @@ Git-side: `core.sshCommand = ssh -i ~/.ssh/id_bot -o IdentitiesOnly=yes` (or GIT
 
 `url.<base>.insteadOf` / `pushInsteadOf`: longest-prefix rewrite of remote URLs (e.g. force SSH). Does not set `user.email`. hasconfig still sees the un-rewritten stored URL.
 
-## Implications for a git shim (uv-shims)
+## Implications for a git shim (git-author-shim)
 
 - Per-directory bot name/email on commit: `includeIf gitdir:~/proj/` (trailing slash means recursive). Matches `$GIT_DIR`, not worktree path. Linked worktrees match the main .git location.
 - Case-insensitive Windows paths: `gitdir/i:`.

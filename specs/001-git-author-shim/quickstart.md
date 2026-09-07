@@ -9,19 +9,23 @@ requires an authorized bot key and a reachable repository.
 
 ## Prerequisites and installation
 
-Install Python 3.12+, [uv](https://docs.astral.sh/uv/), and system Git. Run these
-POSIX-shell commands from the `uv-shims` checkout, before activating its environment:
+Install Python 3.12+, [uv](https://docs.astral.sh/uv/), and system Git. Primary install:
 
 ```sh
-# Save the real binary before putting the shim first on PATH.
-REAL_GIT="$(command -v git)"
-uv venv
-uv pip install -e .
-. .venv/bin/activate
-export GIT_SHIM_REAL_PATH="$REAL_GIT"
-command -v git
+# From GitHub
+uv tool install git+https://github.com/DgxSparkLabs/git-author-shim.git
+
+# Or from this git-author-shim checkout
+uv tool install .
 command -v git-shim
 ```
+
+`uv tool install` places both `git` and `git-shim` on the uv tool bin path (`~/.local/bin` on POSIX, `%USERPROFILE%\.local\bin` on Windows).
+
+- **Option 2 (default):** standalone `git-shim`. The installed `git` trampoline is passthrough to real Git. Use `git-shim` for bot identity injection.
+- **Option 1:** `git-shim shadow enable` activates shadowing on the `git` trampoline so agents that spawn `git` are intercepted. `git-shim shadow disable` returns to passthrough; `git-shim shadow status` reports the current mode.
+
+Global configuration lives at `~/.git-shim/config.toml` (`%USERPROFILE%\.git-shim\config.toml` on Windows). Override with `GIT_SHIM_CONFIG`.
 
 On Windows, use the PowerShell installation commands in [README.md](../../README.md).
 The scenarios below use POSIX shell syntax; on PowerShell, set variables with
@@ -33,7 +37,8 @@ your normal shim configuration or modify your global Git identity:
 
 ```sh
 WORKSPACE="$(mktemp -d)"
-export GIT_SHIM_CONFIG="$WORKSPACE/git.toml"
+export GIT_SHIM_CONFIG="$WORKSPACE/config.toml"
+export GIT_SHIM_SHADOW=1  # Option 1 for these scenarios without writing the shadow marker
 cat > "$GIT_SHIM_CONFIG" <<'TOML'
 [[identities]]
 id = "acme-github"

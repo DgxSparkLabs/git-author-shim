@@ -194,7 +194,7 @@ Quote (`switch.rs`): remove `~/.gitconfig`, `create_symlink(target_profile_path,
 
 ---
 
-## Implications for a git shim (uv-shims)
+## Implications for a git shim (git-author-shim)
 
 | Approach | Who | Trigger | Writes |
 |---|---|---|---|
@@ -207,5 +207,5 @@ Quote (`switch.rs`): remove `~/.gitconfig`, `create_symlink(target_profile_path,
 | HTTPS PAT helper | git-ego credential | `git credential get` | OS keychain |
 | `gh auth switch` | gitswitch, variant96, ghswitch | Coupled to identity switch | gh’s token store |
 
-**None of the verified tools auto-switch on remote URL** the way nvm switches on `.nvmrc` without a prior directory rule. Directory auto-switch that is actually silent is **includeIf**, not a shim on `git` itself — except a future uv-shims git wrapper could do per-invocation identity like `GIT_SSH_COMMAND` / env, which only madx (`-c`) and gip (`use --exports`) approximate today.
+**None of the verified tools auto-switch on remote URL** the way nvm switches on `.nvmrc` without a prior directory rule. Directory auto-switch that is actually silent is **includeIf**, not a shim on `git` itself — except a future git-author-shim git wrapper could do per-invocation identity like `GIT_SSH_COMMAND` / env, which only madx (`-c`) and gip (`use --exports`) approximate today.
 

@@ -13,7 +13,7 @@ Build a transparent CLI shim named `git` that intercepts AI coding agent invocat
 **Language/Version**: Python 3.12+ (built and managed via `uv`)
 
 **Primary Dependencies**: Standard library (`os`, `sys`, `subprocess`, `signal`, `tomllib`, `hashlib`, `pathlib`), zero heavy external dependencies. Strict lazy-import architecture: top-level imports in `__main__.py` restricted to `os` and `sys`.
-**Storage**: Local file configuration (TOML) for global settings (`~/.config/uv-shims/git.toml`) and JSON for content-hash trust registry (`~/.config/uv-shims/trusted-hashes.json`).
+**Storage**: Local file configuration (TOML) for global settings (`~/.git-shim/config.toml`) and JSON for content-hash trust registry (`~/.git-shim/trusted-hashes.json`).
 
 **Testing**: `pytest` for unit, contract, and end-to-end integration tests across Windows, macOS, and Linux.
 
@@ -62,17 +62,18 @@ specs/001-git-author-shim/
 ### Source Code (repository root)
 
 ```text
-src/uv_shims/git/
+src/git_author_shim/
 ├── __init__.py
 ├── __main__.py                      # Entrypoint for `git` and `git-shim`
 ├── data_models.py                   # Dataclasses and internal state models
-├── cli.py                           # Argument parsing and explain/trust subcommands
+├── cli.py                           # Argument parsing and explain/trust/shadow subcommands
 ├── config.py                        # TOML configuration loader and validator
 ├── agent_detection.py               # Agent mode and vendor marker detection
 ├── real_git_discovery.py            # Real Git binary resolution and recursion avoidance
 ├── repo_identity_matcher.py         # Remote URL canonicalization and wildcard pattern matcher
 ├── commit_authorship_classifier.py  # Commit classification (originating vs carrying) & sequencer detection
 ├── credential_injector.py           # SSH key & HTTPS credential helper injection
+├── shadow.py                        # `git` trampoline shadow enable/disable/status
 └── repo_config_trust.py             # SHA-256 content-hash trust registry
 
 tests/
@@ -105,7 +106,7 @@ tests/
     └── test_performance.py
 ```
 
-**Structure Decision**: Python package under `src/uv_shims/git/` installed with console script entry points `git` and `git-shim`, accompanied by modular unit, contract, and integration test suites in `tests/`.
+**Structure Decision**: Python package under `src/git_author_shim/` installed with console script entry points `git` and `git-shim`, accompanied by modular unit, contract, and integration test suites in `tests/`.
 
 ## Complexity Tracking
 
