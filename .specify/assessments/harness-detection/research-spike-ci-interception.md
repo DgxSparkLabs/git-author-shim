@@ -4,7 +4,7 @@
 - **Created**: 2026-09-08
 - **Stage**: research (feasibility spike, scoped)
 - **Feeds**: `/speckit-assess-shape` (as the appetite-defining risk) then `/speckit-assess-decide` (as a gate)
-- **Status**: planned — not yet executed
+- **Status**: executed 2026-09-08 — Gap 1 local leg PASS; CI-runner leg deferred to SDD; Gap 2 realism assessed
 
 ## What Already Ships (Baseline — Do Not Re-Prove)
 
@@ -68,3 +68,31 @@ Half a day. Gap 1 is a focused coverage probe against a shipping mechanism; Gap 
 - A Findings block appended here (result, evidence, OS, blockers, realism ceiling); the throwaway launcher and any temporary CI job deleted after the result is recorded. A permanent PATH-routing regression test, if warranted, is left for SDD `implement`.
 - Into `shape`: the result sets appetite and chooses between "detection/registry only" and "detection + PATH-routing regression coverage" option scopes.
 - Into `decide`: a non-pass result makes the honest verdict needs-clarification, not go.
+
+## Findings (executed 2026-09-08, Windows 11, this box)
+
+All evidence below is *observed* on this machine unless tagged otherwise. The probe used exactly one shim (the fixed `.venv/Scripts/git.exe` trampoline) on a minimal `PATH` ahead of real Git, spawned `git` with no shell (`subprocess.run([...], shell=False)`), and was deleted after the run.
+
+### Gap 1 — PATH-routed, no-shell interception: PASS (local)
+
+- **Shim wins `PATH` resolution.** `shutil.which("git")` over `[.venv/Scripts, C:\Program Files\Git\cmd, ...]` resolved to `...\.venv\Scripts\git.EXE`, not system Git. (observed, high)
+- **A bare `git` spawn is intercepted and detects agent mode.** `GIT_SHIM_EXPLAIN=1 git commit -m probe` with `AGENT_ID=spike-probe-agent` (no shell) returned rc 0 and printed `Mode: agent (detected via AGENT_ID)`, `Target Host: github.com`, `Write Permitted: NO` (fail-closed — no identity configured), then exited *without* running Git. The shim ran, not real Git. (observed, high)
+- **Real-git discovery skips the sibling shim via `PATH`.** `git --version` under shadow+agent returned `git version 2.54.0.windows.1` in well under a second — so `find_real_git` discovered `C:\Program Files\Git\cmd\git.exe` by walking `PATH` past its own sibling trampoline, with no `GIT_SHIM_REAL_PATH` override. (observed, high)
+- **Process count bounded.** `git.exe` count after both spawns was 1 — no runaway. Contrast the two-install case earlier this session, which climbed 3→8→14→… unbounded until tree-killed. (observed, high)
+- **No operator mutation.** `~/.gitconfig` was byte-identical before/after (197 bytes) and `~/.git-shim/` was never created. (observed, high)
+
+**Not yet run:** the same probe on a CI runner (Ubuntu). `ci.yml` already runs the suite cross-OS, so the only missing piece is a *permanent* PATH-routing regression test; once added in SDD it runs cross-OS automatically. Residual risk is low but non-zero (runner `PATH` precedence differs). Full spike "Pass" therefore waits on that one CI leg.
+
+### Gap 2 — real-harness realism: assessed (ceiling reached)
+
+- **A real harness process really does route a bare `git` through the installed shim.** On this session's *live* operator `PATH`, `git` resolves to `C:\Users\devic\.local\bin\git.EXE` — an installed shim, first on `PATH` — confirming the spawn→PATH→shim routing is a production reality, not only a simulated construct. (observed, high)
+- **The live shim is the pre-fix copy.** That `~/.local/bin` shim is a separate `uv tool install` copy predating the recursion fix (`6340a28`); the fix is not live for the operator until reinstall. The ambient `git` was therefore *not* exercised here (running it would reignite the proven old-code recursion if `.venv/Scripts` is also live). (observed, high)
+- **Under the real harness the shim resolves to human today.** Live env exports `CLAUDECODE=1` and `OMPCODE=1` but not `CLAUDE_CODE`/`AGENT_ID`/`AI_AGENT`, so `_VENDOR_MARKERS` does not match and detection returns human — reconfirming the problem baseline (detection-coverage gap), which is a separate, already-documented question. (observed, high)
+- **Vendor-binary realism is irreducible offline.** Driving an actual Claude Code / OMP process to emit a deterministic `git` call needs auth and network, which breaks the credential-free constraint. The faithful, reproducible substitute is exactly Gap 1's contract — a no-shell `git` spawn on `PATH` carrying the harness's documented markers — and the live resolution above confirms that substitute matches production routing. Simulated-marker parity is the ceiling and is sufficient for the go decision. (observed + reasoning, medium)
+
+### Result & Flow
+
+- **Gap 1 local: PASS.** PATH-routed no-shell interception, real-git discovery, bounded process count, and zero operator mutation are proven for the fixed code with a single install.
+- **Gap 2: ceiling reached.** Real-harness routing is confirmed real; vendor-binary drive-through is out of scope for credential-free CI; simulated-marker parity stands in faithfully.
+- **Into `shape`:** appetite is small — the mechanism works; the residual is a permanent PATH-routing regression test plus the marker-coverage fix. This favors the "detection fix + PATH-routing regression coverage" option over any larger rebuild.
+- **Into `decide`:** not a full go yet — the CI-runner leg of Gap 1 is unproven, so the honest posture is *go once the PATH-routing regression test lands and runs green cross-OS in CI*, not before.
