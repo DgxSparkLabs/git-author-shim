@@ -69,6 +69,30 @@ def test_skips_sibling_git_shadow_launcher(executable, tmp_path):
     assert discovery.find_real_git(shim_path=shadow, env=env) == str(real)
 
 
+def test_skips_second_shim_install_in_another_directory(executable, tmp_path):
+    """Two independent shim installs on PATH must not select each other.
+
+    Each install pairs a ``git`` launcher with a ``git-shim`` sibling; without
+    the co-location rule, install A resolves install B (a different directory)
+    as "real git" and execs it, and B execs A, recursing without bound.
+    """
+    git_name = "git.exe" if os.name == "nt" else "git"
+    shim_name = "git-shim.exe" if os.name == "nt" else "git-shim"
+    installs = []
+    for directory in ("install_a", "install_b"):
+        base = tmp_path / directory
+        base.mkdir()
+        for name in (git_name, shim_name):
+            launcher = base / name
+            launcher.write_bytes(b"shim\n")
+            launcher.chmod(0o755)
+        installs.append(base / git_name)
+    real = executable("real")
+    env = {"PATH": os.pathsep.join(map(str, [p.parent for p in installs] + [real.parent]))}
+    assert discovery.find_real_git(shim_path=installs[0], env=env) == str(real)
+    assert discovery.find_real_git(shim_path=installs[1], env=env) == str(real)
+
+
 def test_bare_argv0_does_not_select_the_shim_from_path(executable, tmp_path, monkeypatch):
     scripts = tmp_path / "scripts"
     scripts.mkdir()

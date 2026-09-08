@@ -50,12 +50,15 @@ _IMPORT_PATH: str = os.environ.get("PATH", "")
 def real_git() -> str | None:
     """Absolute path to a genuine ``git`` binary, or ``None`` if there is none.
 
-    Deliberately *not* a plain ``shutil.which("git")``: a venv-local ``git``
-    launcher (from ``git-shim shadow enable``, or a leftover console script)
-    would otherwise make every repository fixture recurse into the shim under
-    test. Candidates inside the interpreter's prefixes are skipped and the
-    winner must answer ``git --version``.
+    Deliberately *not* a plain ``shutil.which("git")``: a ``git`` launcher from
+    this project (a uv-tool ``~/.local/bin`` shim, a ``.venv/Scripts`` console
+    script, or ``git-shim shadow enable``) would otherwise make every repository
+    fixture recurse into the shim under test. Candidates inside the interpreter's
+    prefixes, and any ``git`` co-located with a ``git-shim`` launcher, are
+    skipped; the winner must answer ``git --version``.
     """
+    from git_author_shim.real_git_discovery import _has_shim_sibling
+
     excluded: list[Path] = []
     for prefix in (sys.prefix, sys.base_prefix, sys.exec_prefix):
         try:
@@ -74,6 +77,8 @@ def real_git() -> str | None:
             continue
         candidate = shutil.which("git", path=str(directory))
         if candidate is None:
+            continue
+        if _has_shim_sibling(candidate):
             continue
         try:
             probe = subprocess.run(  # noqa: S603
@@ -412,6 +417,7 @@ class TempRepo:
             capture_output=True,
             text=True,
             check=check,
+            timeout=60,
         )
 
     def config(self, key: str, value: str) -> None:
@@ -482,6 +488,7 @@ def temp_repo(tmp_path: Path) -> Callable[..., TempRepo]:
             capture_output=True,
             text=True,
             check=True,
+            timeout=60,
         )
 
         repo = TempRepo(path=repo_path, git_env=env, git_binary=git_binary)

@@ -18,6 +18,23 @@ def _launcher_stem(path: str) -> str:
     return name
 
 
+def _has_shim_sibling(candidate: str) -> bool:
+    """True when a ``git-shim`` launcher sits beside this ``git`` candidate.
+
+    A ``git`` launcher co-located with ``git-shim`` is one of our own shim
+    installs. Recognizing it regardless of directory keeps two installs on
+    ``PATH`` (for example a uv-tool ``~/.local/bin`` shim and a project
+    ``.venv/Scripts`` console script) from selecting and executing each other
+    in an unbounded loop.
+    """
+    directory = os.path.dirname(os.path.abspath(candidate))
+    if _IS_WINDOWS:
+        names = ("git-shim.exe", "git-shim.cmd", "git-shim.bat", "git-shim.com", "git-shim")
+    else:
+        names = ("git-shim",)
+    return any(_is_executable(os.path.join(directory, name)) for name in names)
+
+
 def _is_shim(candidate: str, shim_path: str) -> bool:
     if os.path.normcase(os.path.realpath(candidate)) == os.path.normcase(
         os.path.realpath(shim_path)
@@ -28,12 +45,8 @@ def _is_shim(candidate: str, shim_path: str) -> bool:
             return True
     except OSError:
         pass
-    candidate_dir = os.path.normcase(os.path.abspath(os.path.dirname(candidate)))
-    shim_dir = os.path.normcase(os.path.abspath(os.path.dirname(shim_path)))
-    if candidate_dir == shim_dir:
-        stems = {_launcher_stem(candidate), _launcher_stem(shim_path)}
-        if stems == {"git", "git-shim"}:
-            return True
+    if _launcher_stem(candidate) == "git" and _has_shim_sibling(candidate):
+        return True
     return False
 
 
