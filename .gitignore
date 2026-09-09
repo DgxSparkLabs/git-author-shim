@@ -47,3 +47,12 @@ Thumbs.db
 
 # Shims runtime & test artifacts
 .test_tmp/
+
+# Realism gate shim installs (CI: $GITHUB_WORKSPACE/.toolbin; local dev: .local-*)
+.toolbin/
+.local-toolbin/
+.local-tooldir/
+
+# nektos/act local runs
+.act/
+.actrc
