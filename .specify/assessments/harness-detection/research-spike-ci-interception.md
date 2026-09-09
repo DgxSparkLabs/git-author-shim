@@ -90,15 +90,48 @@ All evidence below is *observed* on this machine unless tagged otherwise. The pr
 - **A live, shadow-enabled install already routes a bare `git` in production.** Corrected machine state: `C:\Users\devic\.local\bin\` contains `git.exe` (≈1 day old), `git-shim.exe`, **and** a `.git-shim-shadow` marker — a full opt-in shim install — and it wins the ambient operator `PATH`. So a real harness spawning `git` does hit an installed, shadow-enabled shim; this is genuine Gap-2 evidence, not simulation. (An earlier discovery step reporting `~/.local/bin` "absent" was a bash-`$HOME` artifact and was wrong.) (observed, high)
 - **That live shim is the pre-fix build, and every session `git` went through it.** It predates the recursion fix (`6340a28`). Every ambient `git` this session — commits included — was routed through it, succeeding in **human passthrough** (its live markers `CLAUDECODE`/`OMPCODE` are unmatched, so it delegates to real Git) and *not* recursing, because `.venv/Scripts` only joins `PATH` under `uv run`. The ambient `git` was therefore not exercised non-explain here; the earlier unbounded recursion reproduced only under the two-install (`uv run`) condition. (observed, high)
 - **Under the real harness the shim resolves to human today.** Live env exports `CLAUDECODE=1` and `OMPCODE=1` but not `CLAUDE_CODE`/`AGENT_ID`/`AI_AGENT`, so `_VENDOR_MARKERS` does not match and detection returns human — reconfirming the problem baseline (detection-coverage gap), a separate, already-documented question. (observed, high)
-- **Vendor-binary realism is irreducible offline.** Driving an actual Claude Code / OMP process to emit a deterministic `git` call needs auth and network, which breaks the credential-free constraint. The faithful, reproducible substitute is Gap 1's contract — a no-shell `git` spawn on `PATH` carrying the harness's documented markers — and the live `.local/bin` install confirms that contract matches production routing. Simulated-marker parity is the ceiling and is sufficient for the go decision. (observed + reasoning, medium)
+- **Vendor-binary realism is only partly irreducible — the strong claim is REFUTED.** Driven live this session (see "Live real-harness verification" below), the real `omp` (v18.1.15) and `claude` (v2.1.263) binaries **did** spawn `git` offline and credential-free via their documented local-shell paths — the `!` REPL escape, and per the subagent design also `omp --mode rpc {type:bash}` and `claude --bg --exec` — and the spawned `git` hit the shim. What remains genuinely auth-bound is only *autonomous LLM-decided* git. Caveat: those paths route `git` through the harness's **shell** executor, so they prove vendor process → shell → PATH git → shim, **not** the no-shell `CreateProcessW("git")` contract that Gap 1 owns. Simulated-marker parity is still the right CI oracle; real-binary drive is an optional local realism gate. (observed, high)
 
 ### Result & Flow
 
 - **Gap 1 local: PASS (narrow).** PATH selection of the trampoline, `GIT_SHIM_REAL_PATH`-free real-git discovery, bounded process count, and zero operator mutation are proven for the fixed code under a controlled single-shim `PATH`. Not proven: the shadow-marker install layout and identity matching (deferred to the e2e suite).
-- **Gap 2: ceiling reached.** A live shadow-enabled install routing a bare `git` is confirmed real; vendor-binary drive-through is out of scope for credential-free CI; simulated-marker parity stands in faithfully.
+- **Gap 2: strong "irreducible offline" claim refuted; ceiling clarified.** Real `omp`+`claude` were driven to spawn `git` offline via local-shell APIs and hit the shim; only autonomous LLM-decided git needs auth+network. That drive is shell-routed, so the no-shell contract stays Gap 1's; the stub remains the CI oracle, with real-binary drive as an optional local gate.
 - **Into `shape`:** appetite is small — the mechanism works; the residual is a permanent PATH-routing regression test plus the marker-coverage fix. This favors the "detection fix + PATH-routing regression coverage" option over any larger rebuild.
 - **Into `decide`:** not a full go yet — the CI-runner leg of Gap 1 is unproven, so the honest posture is *go once the PATH-routing regression test lands and runs green cross-OS in CI*, not before.
 
 ### Operator hazard (out of pipeline)
 
 The live `C:\Users\devic\.local\bin\git.exe` is the pre-`6340a28` build, so any session where `.venv/Scripts` also lands on `PATH` (e.g. `uv run`, an activated venv) re-triggers the unbounded `git.exe` recursion that had to be tree-killed. One-command fix, independent of this assessment: `uv tool install --force .` from the clone (or the `git+https://…` remote) to redeploy the fixed code.
+
+## Live real-harness verification (executed 2026-09-09, Windows 11)
+
+Driven with the **real** binaries under a PTY (`omp` v18.1.15; `claude` v2.1.263, Opus) in an isolated scratch repo (`%TEMP%\shim-e2e-scratch`, origin `github.com/DgxSparkLabs/git-author-shim`), child env `GIT_SHIM_EXPLAIN=1 GIT_SHIM_MODE=agent AGENT_ID=probe-*`, ambient `PATH` (single shim = the operator's pre-fix `~/.local/bin/git.exe`).
+
+- **omp, LLM Bash-tool path:** the model (Claude Opus) ran `git status` via its Bash tool; the tool received the shim's `=== Resolved Plan === Mode: agent, Repository: github.com/DgxSparkLabs/git-author-shim`, not real git output — the model itself noted "it resolved Mode: agent, Operation: read." Uses auth+network (a model turn). (observed, high)
+- **omp, offline `!`-escape:** a clean `!git status` ran as `$ git status` with the model idle and zero token usage, and returned the same shim plan — **no LLM round-trip, no network, no auth**. (observed, high)
+- **claude, startup + shell mode:** claude's own startup `git` poll returned the shim plan; an explicit `! git status` (shell mode) likewise returned the shim plan. (observed, high)
+- **Safety:** single shim on `PATH` → no recursion; `EXPLAIN` meant no real git ran and no commit was created; operator `~/.gitconfig` untouched; after `stop`, zero leftover `git.exe`/`omp.exe`/`claude.exe`. (observed, high)
+
+Honest limits of the live drive:
+- Agent mode was **forced/overdetermined** (`GIT_SHIM_MODE=agent` plus `AGENT_ID`, itself a real vendor marker). This did *not* test live auto-detection of `CLAUDECODE`/`OMPCODE` (which resolves human without `custom_agent_markers` — the separate coverage gap).
+- Shadow was activated by `GIT_SHIM_SHADOW=1` in the harness env (same caveat as Gap 1's probe), not the marker file.
+- The `!`-escape and the Bash-tool both route `git` through the harness **shell**, so this proves vendor process → shell → PATH git → shim, **not** no-shell `spawn("git")` (Gap 1's contract, proven separately and locally).
+- Used the operator's live **pre-fix** `.local/bin` shim; routing/explain are unaffected by the recursion fix under a single install.
+
+Net: the earlier "vendor-binary realism is irreducible offline" was wrong in the strong form — the real binaries do spawn `git` offline via documented local-shell APIs and route through the shim.
+
+## Programmatic e2e design (subagent discussion)
+
+Three read-only scouts (`agent://HarnessDriver`, `agent://StubContract`, `agent://CIDesign`) converged on a two-tier design.
+
+**Tier 1 — CI oracle (always, credential-free): a no-shell fake-harness stub.**
+- A `fake_harness` helper spawns bare `git` with `shell=False`, `PATH` = exactly one installed trampoline dir ahead of real git (excluding any other `git`+`git-shim` sibling dir), harness markers `CLAUDECODE`/`OMPCODE` (+`AI_AGENT` for autonomous) in the child env, `GIT_SHIM_MODE`/`GIT_SHIM_REAL_PATH` unset (auto detection + real PATH discovery), config listing those names under `custom_agent_markers` until the vendor list is fixed.
+- Delta vs today's `_run_shim`: bare `git` (not `python -m git_author_shim`), no `GIT_SHIM_REAL_PATH`, genuine PATH discovery — closing precisely the gap the current suite skips.
+- Assertions: PATH winner is the shim (Windows: PE `git.exe`, no sibling `.cmd`); `Mode: agent (detected via <MARKER>)` under explain; identity stamped OR fail-closed; `~/.gitconfig`/`~/.ssh`/`config.toml` byte-identical; bounded `git`/`git.exe` process count with a 30s timeout as the `6340a28` recursion tripwire. Plus a plumbing-only negative (`ORCA_*`/`PI_*` → human) and a no-marker human baseline.
+- New CI **`interception` job** (sibling to `test`; ubuntu+windows+macos; py3.12): `uv tool install .` **only** (never `uv sync`/`uv run` there — that is the two-shim recursion surface), `git-shim shadow enable` (the real marker), prepend the tool-bin, assert exactly one shim on `PATH`, then run the stub. Keep `test`/`lint` unchanged; the pytest job must never `uv tool install` this package.
+
+**Tier 2 — optional local realism gate (skip-if-missing): drive the real binaries.**
+- Ranked credential-free recipes: (1) `omp --mode rpc` + `{"type":"bash","command":"git …"}` (no PTY, no model); (2) `claude --bg --exec "git …"` (PTY-backed job, no session/model; set `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`); (3) ConPTY-driven REPL `!` (fragile). Windows PTY: prefer RPC/exec over TUI; `pexpect` does not work natively and zellij is Unix/WSL-only.
+- This is the path this session exercised by hand — the honest realism ceiling. Never required for merge; never given secrets in Actions.
+
+**Key distinction:** the stub proves the *no-shell* contract (Gap 1); the real-binary drive proves *vendor → shell → git* (Gap 2). Both are wanted, but only the stub belongs in hosted CI — runners carry no `claude`/`omp`, and `-p`/`--allowedTools` model-driven git needs auth and network.
