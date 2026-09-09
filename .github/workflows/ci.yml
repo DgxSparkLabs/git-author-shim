@@ -65,3 +65,43 @@ jobs:
 
       - name: Ruff lint
         run: uv run ruff check src tests
+
+  realism:
+    name: realism (real omp binary)
+    # A real-harness end-to-end gate. GitHub-hosted runners have neither the `omp`
+    # binary nor agent credentials, so this runs ONLY on a self-hosted runner labelled
+    # `git-shim-realism` that has `omp` installed and authenticated, and ONLY on a
+    # manual dispatch -- it never blocks a PR and never lands on a hosted runner.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: [self-hosted, git-shim-realism]
+    env:
+      # Install the shim's executables here so we control exactly one `git` trampoline.
+      UV_TOOL_BIN_DIR: ${{ github.workspace }}/.toolbin
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install the shim as a single on-PATH git
+        shell: bash
+        # `uv tool install` ONLY -- never `uv sync`/`uv run` here: a second (.venv) shim
+        # on PATH is the two-install recursion surface the shim guards against.
+        run: |
+          uv tool install --force .
+          echo "${{ github.workspace }}/.toolbin" >> "$GITHUB_PATH"
+
+      - name: Confirm the shim trampoline is on PATH
+        shell: bash
+        run: |
+          command -v git
+          command -v git-shim
+
+      - name: Run the realism gate
+        shell: bash
+        # `uvx pytest` runs pytest in an ephemeral env that does NOT expose this project's
+        # `git` console script, so the shim installed above stays the only one on PATH.
+        env:
+          GIT_SHIM_REALISM: "1"
+        run: uvx pytest tests/realism -m realism -v

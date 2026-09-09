@@ -36,6 +36,9 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
 addopts = "-v --strict-markers"
+markers = [
+    "realism: opt-in end-to-end gate that launches a real agent-harness binary; needs the binary, auth, and network (enable with GIT_SHIM_REALISM=1)",
+]
 
 [tool.ruff]
 line-length = 100
