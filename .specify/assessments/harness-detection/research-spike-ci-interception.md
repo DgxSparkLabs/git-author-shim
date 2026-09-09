@@ -146,4 +146,74 @@ Tier 2 is no longer only a design. A committed, opt-in test now launches the **r
 - **omp injects the markers itself — auto-detection is genuine on a clean runner.** Probed with a *scrubbed* parent env (`OMPCODE`/`CLAUDECODE` empty in the parent), a freshly launched `omp` still handed its Bash-tool child `OMPCODE=1` **and** `CLAUDECODE=1`. This upgrades the earlier "markers were inherited from the ambient session" ambiguity (lines 115/120) into **the harness self-exports them** — so on a hosted-clean process tree with no ambient marker, a real omp still triggers the shim's `custom_agent_markers` detection. No `GIT_SHIM_MODE` needed. (observed, high)
 - **`omp -p` is the proven non-interactive driver.** `omp -p --no-session --no-pty --auto-approve --cwd <repo> "<git instruction>"` runs the model, spawns `git` through omp's tool runtime, and exits (~18–21s). This supersedes the fragile `!`-escape for automation: no PTY, no stray-column-0 char. It is model-driven, so it needs auth + network + a little quota; the assertion is the commit's author/committer (not model prose), so a wrong turn fails loudly rather than false-passing. The zero-quota `--mode rpc {type:bash}` path remains unverified and is not used.
 - **Landed as** `tests/realism/test_real_harness_binary.py` (marker `realism`, opt-in via `GIT_SHIM_REALISM=1`) + a manual-dispatch **`realism` CI job** pinned to a self-hosted runner labelled `git-shim-realism`. Verified locally: the real omp commit is stamped author+committer = the configured bot over a human repo identity; skips when un-opted-in; **fails loudly** (never skips) when opted in but the binary/shim is absent, so the self-hosted job cannot go green vacuously.
-- **Still true:** hosted GitHub runners carry neither the binary nor credentials, so this gate is self-hosted/manual only — it complements, never replaces, the Tier-1 no-shell stub as the always-on hosted oracle. `claude` can be added as a second driver once its `-p --allowedTools` invocation is verified the same way (not yet done).
+- **Still true:** hosted GitHub runners carry neither the binary nor credentials, so this authenticated gate is self-hosted/manual only — it complements, never replaces, the Tier-1 no-shell stub as the always-on hosted oracle. `claude` is now wired as a second, *credential-free* driver — see "Auth-free hosted real-binary gate" below.
+
+## Auth-free hosted real-binary gate — implemented and act-validated (2026-09-09)
+
+The Tier-2 realism gate above is no longer self-hosted/manual-only. The single
+thing that forced auth was the model round-trip; replacing the model with a
+**loopback mock endpoint** keeps the real binary and its real tool runtime while
+removing every credential and all LLM network egress, so the same proof now runs
+on a **stock hosted runner** and was validated locally under `act`/`gh act`.
+
+- **Mechanism — mock LLM endpoint.** `tests/realism/mock_llm.py` is a stdlib-only
+  HTTP server (no pip deps, so it runs anywhere) speaking the Anthropic Messages
+  API (primary; also OpenAI Chat Completions). It accepts any/no API key (never
+  401), streams SSE (the CLIs send `stream:true`), echoes the advertised tool-name
+  casing (`Bash` for claude, `bash` for omp), and does two deterministic turns:
+  turn 1 → one `tool_use` running `git commit --allow-empty -m "<subject>"`; turn 2
+  (after the `tool_result`) → `end_turn`. No model, no quota, loopback only.
+- **Driver — real `claude`, dummy key.** `claude --bare -p
+  --dangerously-skip-permissions --allowedTools "Bash(git *)" --max-turns 2 --model
+  claude-sonnet-4-6` with `ANTHROPIC_BASE_URL=http://127.0.0.1:<port>` and
+  `ANTHROPIC_API_KEY=dummy`, plus the `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` /
+  `DISABLE_TELEMETRY` / `DISABLE_ERROR_REPORTING` / `DISABLE_AUTOUPDATER` /
+  `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS` offline flags so no request escapes to the
+  real Anthropic edge. `claude` installs headless on ubuntu via
+  `curl -fsSL https://claude.ai/install.sh | bash` (or npm). (observed, high)
+- **claude self-exports the marker.** Dumping the env of claude's Bash-tool child
+  showed `CLAUDECODE=1` **and** `AI_AGENT=claude-code_<ver>_agent` — both in
+  `custom_agent_markers` — so auto-detection is genuine (the parent env is scrubbed
+  of every marker before launch; the git child can only get one from claude itself).
+  (observed, high)
+- **Landed as** `tests/realism/test_mock_harness_binary.py` (marker `realism_mock`,
+  opt-in via `GIT_SHIM_REALISM_MOCK=1`; fails loudly, never skips, when opted in but
+  the binary/shim is absent) + an always-on hosted **`realism-hosted` job** on
+  `ubuntu-latest` in `ci.yml` (install uv → install claude → `uv tool install .`
+  only, one on-PATH `git` → `uvx pytest tests/realism -m realism_mock`). No
+  `if:` restriction, no self-hosted runner, no secrets.
+- **Validated locally with `gh act`.** `gh act push -j realism-hosted -W
+  .github/workflows/ci.yml -P ubuntu-latest=catthehacker/ubuntu:act-latest
+  --container-architecture linux/amd64` → **Job succeeded**: claude 2.1.266 installed,
+  the shim resolved as the single on-PATH `git`, and the gate PASSED — a real claude
+  binary, fed the dummy-key mock, ran `git commit` through its Bash tool and the shim
+  stamped author+committer = the bot over a human repo identity, with zero
+  credentials and zero LLM egress. (observed, high)
+
+Env/tooling notes for reproduction:
+- **Docker must be in Linux-containers mode.** With Docker Desktop in Windows-
+  containers mode, act/`docker run` reject the Linux job (`no matching manifest for
+  linux/amd64`; container-create `invalid mount path: '/opt/hostedtoolcache'`). Switch
+  with `DockerCli.exe -SwitchLinuxEngine`.
+- **`IS_SANDBOX=1` for root CI.** `--dangerously-skip-permissions` refuses to run as
+  root ("cannot be used with root/sudo privileges"). Hosted runners use a non-root
+  user so this is moot there, but `act`'s container runs as root; the test sets
+  `IS_SANDBOX=1` (claude's sanctioned sandbox escape, harmless on non-root) so the
+  same test passes both under `act` and on real hosted runners.
+
+Honest limits:
+- **omp is not yet wired to the mock.** `omp --model opus` + `ANTHROPIC_BASE_URL`
+  did **not** route to the loopback (zero requests reached the mock in a live probe);
+  omp needs an explicit keyless `models.yml` provider (`api: anthropic-messages` /
+  `openai-completions`, `auth: none`, `baseUrl`) to point at the mock. Left for a
+  follow-up; the authenticated `omp` gate (`realism` job) still covers omp. The mock
+  already emits the lowercase `bash` tool name for when that lands.
+- **Windows-local claude is Git-Bash-limited, not a shim failure.** Driven directly
+  on Windows, claude runs `git` through Git-Bash, which reshuffles `PATH` so
+  `/mingw64/bin/git` precedes the shim dir — the real git runs, not the shim. Linux
+  `bash -c` inherits `PATH` unchanged, so the shim (placed first) wins; that is why
+  the gate targets `ubuntu-latest` and is validated in a Linux container.
+- **Still the same chain as Tier 2.** This proves vendor process → Bash tool → PATH
+  `git` → shim (not the no-shell `spawn("git")` contract, which stays Tier-1's). What
+  is newly removed is the credential/network dependency, promoting the real-binary
+  proof from a self-hosted/manual gate to an always-on hosted one.

@@ -38,6 +38,7 @@ python_functions = ["test_*"]
 addopts = "-v --strict-markers"
 markers = [
     "realism: opt-in end-to-end gate that launches a real agent-harness binary; needs the binary, auth, and network (enable with GIT_SHIM_REALISM=1)",
+    "realism_mock: opt-in auth-free end-to-end gate that launches a real agent-harness binary against a loopback mock model; needs the binary but no auth or network (enable with GIT_SHIM_REALISM_MOCK=1)",
 ]
 
 [tool.ruff]
