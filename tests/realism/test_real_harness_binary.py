@@ -16,11 +16,12 @@ so it is skipped unless explicitly opted in::
 
     GIT_SHIM_REALISM=1 uvx pytest tests/realism -m realism -v
 
-(optionally ``OMP_BIN=/path/to/omp`` when the binary is not on ``PATH``). The on-``PATH``
-``git`` must be the shim; the test forces ``GIT_SHIM_SHADOW=1`` so an installed shim
-engages regardless of its marker file, and skips with an explanatory message when the
-resolved ``git`` is plain Git. CI runs this only on a self-hosted runner that has the
-binary and credentials -- see the ``realism`` job in ``.github/workflows/ci.yml``.
+(optionally ``OMP_BIN=/path/to/omp`` when the binary is not on ``PATH``). Once opted in,
+a missing binary or a non-shim ``git`` on ``PATH`` is a hard failure, never a skip, so a
+misconfigured runner cannot go green having proven nothing; the un-opted-in case is the
+only skip. The test forces ``GIT_SHIM_SHADOW=1`` so an installed shim engages regardless
+of its marker file. CI runs this only on a self-hosted runner that has the binary and
+credentials -- see the ``realism`` job in ``.github/workflows/ci.yml``.
 """
 
 from __future__ import annotations
@@ -117,10 +118,10 @@ def test_real_omp_binary_commit_is_stamped_with_the_bot(tmp_path: Path) -> None:
     """The real ``omp`` binary, deciding to run ``git`` itself, is intercepted and stamped."""
     omp = _omp_binary()
     if omp is None:
-        pytest.skip("omp not found (put it on PATH or set OMP_BIN=/path/to/omp)")
+        pytest.fail("GIT_SHIM_REALISM is set but omp was not found (put it on PATH or set OMP_BIN)")
     git = shutil.which("git")
     if git is None:
-        pytest.skip("no git on PATH")
+        pytest.fail("GIT_SHIM_REALISM is set but no git is on PATH")
 
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -147,9 +148,9 @@ def test_real_omp_binary_commit_is_stamped_with_the_bot(tmp_path: Path) -> None:
         timeout=60,
     )
     if "Resolved Plan" not in probe.stdout:
-        pytest.skip(
-            "on-PATH git is not the shim; install it (`uv tool install .`) and put its "
-            "bin first on PATH so `git` resolves to the trampoline"
+        pytest.fail(
+            "GIT_SHIM_REALISM is set but the on-PATH git is not the shim; install it "
+            "(`uv tool install .`) and put its bin first on PATH so `git` is the trampoline"
         )
 
     # Launch the REAL omp binary, non-interactively. GIT_SHIM_MODE / AGENT_ID are removed:
