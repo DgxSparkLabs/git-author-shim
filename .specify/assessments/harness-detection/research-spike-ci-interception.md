@@ -199,7 +199,7 @@ Env/tooling notes for reproduction:
   root ("cannot be used with root/sudo privileges"). Hosted runners use a non-root
   user so this is moot there, but `act`'s container runs as root; the test sets
   `IS_SANDBOX=1` (claude's sanctioned sandbox escape, harmless on non-root) so the
-  same test passes both under `act` and on real hosted runners.
+  same test should pass on hosted runners as well (unverified — see limits).
 
 Honest limits:
 - **omp is not yet wired to the mock.** `omp --model opus` + `ANTHROPIC_BASE_URL`
