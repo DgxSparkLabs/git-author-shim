@@ -225,6 +225,18 @@ def test_real_claude_binary_with_mock_model_is_stamped_with_the_bot(tmp_path: Pa
         f"--- stderr ---\n{result.stderr}"
     )
 
+    # The auth-free claim only holds if claude's model turn went to *our* loopback
+    # mock, not a real API: prove the endpoint was actually contacted.
+    message_posts = [
+        p for (m, p) in server.request_log
+        if m == "POST" and p.startswith("/v1/messages")
+    ]
+    assert message_posts, (
+        "claude never POSTed to the mock's /v1/messages -- it did not route through "
+        f"ANTHROPIC_BASE_URL, so the auth-free path is unproven. "
+        f"claude stdout={result.stdout!r} stderr={result.stderr!r}"
+    )
+
     head = _run_git(git, repo, "log", "-1", "--format=%an|%ae|%cn|%ce|%s", config=config)
     fields = head.stdout.strip().split("|")
     assert len(fields) == 5, (

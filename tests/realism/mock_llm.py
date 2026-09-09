@@ -311,6 +311,7 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802 - stdlib signature
         path = self.path.split("?", 1)[0]
+        self.server.record("POST", path)
         body = self._read_body()
         model = body.get("model") or _DEFAULT_MODEL
         stream = bool(body.get("stream"))
@@ -363,6 +364,14 @@ class MockServer(ThreadingHTTPServer):
         super().__init__((host, port), _Handler)
         self.tool_command = command
         self.verbose = verbose
+        # Every request seen, so a test can prove the harness actually routed through
+        # this endpoint (a passing commit is only auth-free if the model call was ours).
+        self.request_log: list[tuple[str, str]] = []
+        self._log_lock = threading.Lock()
+
+    def record(self, method: str, path: str) -> None:
+        with self._log_lock:
+            self.request_log.append((method, path))
 
 
 def serve_in_thread(host: str = "127.0.0.1", port: int = 0, command: str = _DEFAULT_COMMAND,

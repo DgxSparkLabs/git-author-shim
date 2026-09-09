@@ -217,3 +217,14 @@ Honest limits:
   `git` → shim (not the no-shell `spawn("git")` contract, which stays Tier-1's). What
   is newly removed is the credential/network dependency, promoting the real-binary
   proof from a self-hosted/manual gate to an always-on hosted one.
+- **Proven under `act`, not yet on a real hosted runner.** The green run is the
+  `catthehacker/ubuntu:act-latest` container, which runs as **root** and therefore
+  needs `IS_SANDBOX=1` for `--dangerously-skip-permissions`; that flag is an
+  act-specific accommodation (hosted runners use the non-root `runner` user, where it
+  is a harmless no-op). The real GitHub-hosted path — non-root `runner`, the hosted
+  network-egress policy, and the actual `claude`/`uv` installs on GitHub's image — is
+  **not yet exercised**. Honest posture: *validated locally via `gh act`; hosted run
+  pending*.
+- **`serve_in_thread` binds an ephemeral loopback port**, and the test now asserts the
+  mock logged ≥1 `POST /v1/messages` before trusting the commit, so a run that somehow
+  reached a real API instead of the mock fails loudly rather than false-passing.
